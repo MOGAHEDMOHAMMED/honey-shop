@@ -24,6 +24,14 @@ class AppServiceProvider extends ServiceProvider
             'catalog.categories.manage',
             'catalog.products.view',
             'catalog.products.manage',
+            'catalog.products.price-history.view',
+            'suppliers.view',
+            'suppliers.manage',
+            'opening-inventory.view',
+            'opening-inventory.manage',
+            'purchases.view',
+            'purchases.manage',
+            'purchases.approve',
         ] as $permission) {
             Gate::define(
                 $permission,

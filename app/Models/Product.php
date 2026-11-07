@@ -6,6 +6,7 @@ use App\Enums\BaseInventoryUnit;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Product extends Model
@@ -35,7 +36,7 @@ class Product extends Model
         return [
             'base_unit' => BaseInventoryUnit::class,
             'minimum_stock' => 'decimal:3',
-            'selling_price' => 'decimal:4',
+            'selling_price' => 'decimal:2',
             'max_discount_rate' => 'decimal:6',
             'is_active' => 'boolean',
             'created_at' => 'immutable_datetime',
@@ -51,5 +52,21 @@ class Product extends Model
     public function inventoryBalance(): HasOne
     {
         return $this->hasOne(InventoryBalance::class, 'product_id');
+    }
+
+    public function priceHistory(): HasMany
+    {
+        return $this->hasMany(ProductPriceHistory::class, 'product_id')
+            ->orderByDesc('created_at');
+    }
+
+    public function purchaseLines(): HasMany
+    {
+        return $this->hasMany(PurchaseLine::class, 'product_id');
+    }
+
+    public function openingInventoryLines(): HasMany
+    {
+        return $this->hasMany(OpeningInventoryLine::class, 'product_id');
     }
 }

@@ -19,10 +19,14 @@ Honey Shop is a web-based management system for a shop selling honey, ghee, and 
 - Interactive one-time initial-administrator command.
 - Application and PostgreSQL readiness endpoints.
 - Category listing/search and active-state management.
-- Product listing/search/category filtering, create/edit/details, YER price and discount display, and read-only inventory balance.
+- Product listing/search/category filtering, create/edit/details, YER price and discount display, append-only price history, and read-only inventory balance.
+- Supplier listing/search, create/edit/details, supplier types (including beekeepers), and activation.
+- Opening-inventory drafts and one-time approval with input-unit conversion and trigger-maintained stock posting.
+- Purchase drafts, editing, details, approval, rounded line/document totals, inventory posting, and supplier payable ledger posting.
+- Forward-only PostgreSQL migrations `010`–`012` for price history, supplier/purchase support, opening-inventory unit snapshots, and two-decimal YER precision across financial columns.
 
 ## Not implemented
 
-Purchases, sales, opening inventory UI, stock workflows, returns, external orders, deliveries, expenses, vouchers, representative operations, reporting, and dashboard analytics remain future work. No screens in these areas are represented as functional.
+Sales, returns, external orders, deliveries, expenses, vouchers, representative operations, reporting, and dashboard analytics remain future work. Opening inventory and purchase workflows are implemented, but no inventory-adjustment or transfer workflow is exposed.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md), and [ROADMAP.md](ROADMAP.md).

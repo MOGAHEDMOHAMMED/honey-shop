@@ -2,7 +2,7 @@
     $selectedCategoryId = old('category_id', $product->category_id);
     $selectedUnit = $categoryUnits[$selectedCategoryId] ?? $product->base_unit?->value;
     $discountPercentage = $product->exists
-        ? (float) $product->max_discount_rate * 100
+        ? bcmul((string) $product->max_discount_rate, '100', 4)
         : '';
 @endphp
 
@@ -49,7 +49,7 @@
             {{ __('catalog.fields.selling_price') }} <span class="required-mark">*</span>
         </label>
         <div class="input-group">
-            <input id="selling-price" name="selling_price" type="number" min="0" step="0.0001"
+            <input id="selling-price" name="selling_price" type="number" min="0" step="0.01"
                    value="{{ old('selling_price', $product->selling_price) }}"
                    class="form-control @error('selling_price') is-invalid @enderror" required>
             <span class="input-group-text">{{ __('catalog.currency') }}</span>
@@ -86,6 +86,14 @@
         <textarea id="product-notes" name="notes" rows="3" maxlength="2000"
                   class="form-control @error('notes') is-invalid @enderror">{{ old('notes', $product->notes) }}</textarea>
     </div>
+    @if ($product->exists)
+        <div class="col-12">
+            <label for="price-change-reason" class="form-label">{{ __('catalog.fields.change_reason') }}</label>
+            <input id="price-change-reason" name="price_change_reason"
+                   value="{{ old('price_change_reason') }}"
+                   class="form-control @error('price_change_reason') is-invalid @enderror" maxlength="500">
+        </div>
+    @endif
 </div>
 
 @push('scripts')

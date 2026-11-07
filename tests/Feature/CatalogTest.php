@@ -5,8 +5,10 @@ namespace Tests\Feature;
 use App\Enums\BaseInventoryUnit;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductPriceHistory;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
@@ -96,7 +98,7 @@ class CatalogTest extends TestCase
 
             $product = Product::query()->where('name', 'Product '.$categoryName)->firstOrFail();
             $this->assertSame($unit, $product->base_unit);
-            $this->assertSame('125.5000', $product->selling_price);
+            $this->assertSame('125.50', $product->selling_price);
             $this->assertSame('0.150000', $product->max_discount_rate);
         }
 
@@ -133,7 +135,7 @@ class CatalogTest extends TestCase
         ]);
 
         $data = $this->validProductData($category, 'Mountain Honey Updated');
-        $data['selling_price'] = '140.2500';
+        $data['selling_price'] = '140.25';
         $this->put(route('products.update', $product), $data)->assertRedirect();
 
         $this->assertSame(
@@ -142,7 +144,7 @@ class CatalogTest extends TestCase
                 ->where('product_id', $product->getKey())
                 ->value('quantity'),
         );
-        $this->assertSame('140.2500', $product->fresh()->selling_price);
+        $this->assertSame('140.25', $product->fresh()->selling_price);
     }
 
     public function test_a_product_with_inventory_cannot_be_reclassified_and_cannot_be_deleted(): void
@@ -199,6 +201,145 @@ class CatalogTest extends TestCase
             ->assertSee(__('catalog.currency'));
     }
 
+    public function test_product_creation_records_an_initial_price_history_event(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $product = $this->createProduct($category, 'History Honey');
+        $history = ProductPriceHistory::query()->where('product_id', $product->getKey())->sole();
+
+        $this->assertNull($history->previous_selling_price);
+        $this->assertNull($history->previous_max_discount_rate);
+        $this->assertSame('125.50', $history->new_selling_price);
+        $this->assertSame('0.150000', $history->new_max_discount_rate);
+        $this->assertSame($this->administrator->getKey(), $history->actor_user_id);
+    }
+
+    public function test_price_changes_append_one_event_and_non_price_edits_do_not(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $product = $this->createProduct($category, 'History Honey');
+        $initialCount = ProductPriceHistory::query()->where('product_id', $product->getKey())->count();
+
+        $data = $this->validProductData($category, 'History Honey renamed');
+        $this->put(route('products.update', $product), $data)->assertRedirect();
+        $this->assertSame(
+            $initialCount,
+            ProductPriceHistory::query()->where('product_id', $product->getKey())->count(),
+        );
+
+        $data['selling_price'] = '127.35';
+        $data['max_discount_percentage'] = '18.25';
+        $data['price_change_reason'] = 'تحديث تكلفة الشراء';
+        $this->put(route('products.update', $product), $data)->assertRedirect();
+
+        $history = ProductPriceHistory::query()
+            ->where('product_id', $product->getKey())
+            ->orderByDesc('created_at')
+            ->firstOrFail();
+        $this->assertSame($initialCount + 1, ProductPriceHistory::query()
+            ->where('product_id', $product->getKey())->count());
+        $this->assertSame('125.50', $history->previous_selling_price);
+        $this->assertSame('127.35', $history->new_selling_price);
+        $this->assertSame('0.150000', $history->previous_max_discount_rate);
+        $this->assertSame('0.182500', $history->new_max_discount_rate);
+        $this->assertSame('تحديث تكلفة الشراء', $history->reason);
+        $this->assertSame($this->administrator->getKey(), $history->actor_user_id);
+    }
+
+    public function test_failed_product_update_does_not_append_price_history(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $product = $this->createProduct($category, 'History Honey');
+        $initialCount = ProductPriceHistory::query()->where('product_id', $product->getKey())->count();
+
+        $this->from(route('products.edit', $product))
+            ->put(route('products.update', $product), $this->validProductData(
+                $category,
+                'History Honey',
+                ['selling_price' => '127.355'],
+            ))
+            ->assertSessionHasErrors('selling_price');
+
+        $this->assertSame(
+            $initialCount,
+            ProductPriceHistory::query()->where('product_id', $product->getKey())->count(),
+        );
+    }
+
+    public function test_price_and_discount_can_each_change_independently(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Nuts')->firstOrFail();
+        $product = $this->createProduct($category, 'History Nuts');
+
+        $priceOnly = $this->validProductData($category, 'History Nuts', [
+            'selling_price' => '126.00',
+        ]);
+        $this->put(route('products.update', $product), $priceOnly)->assertRedirect();
+        $this->assertSame(
+            2,
+            ProductPriceHistory::query()->where('product_id', $product->getKey())->count(),
+        );
+
+        $discountOnly = $this->validProductData($category, 'History Nuts', [
+            'selling_price' => '126.00',
+            'max_discount_percentage' => '20',
+        ]);
+        $this->put(route('products.update', $product), $discountOnly)->assertRedirect();
+        $this->assertSame(
+            3,
+            ProductPriceHistory::query()->where('product_id', $product->getKey())->count(),
+        );
+    }
+
+    public function test_price_history_requires_its_specific_permission(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $product = $this->createProduct($category, 'History Honey');
+        $salesRole = Role::query()->where('name', 'Sales User')->firstOrFail();
+        DB::table('role_permissions')
+            ->where('role_id', $salesRole->getKey())
+            ->where('permission_code', 'catalog.products.price-history.view')
+            ->delete();
+
+        $salesUser = User::query()->create([
+            'username' => 'history-read-only',
+            'display_name' => 'History Read Only',
+            'password_hash' => Hash::make('test-password'),
+            'is_active' => true,
+        ]);
+        $salesUser->roles()->attach($salesRole);
+
+        $this->actingAs($salesUser)
+            ->get(route('products.show', $product))
+            ->assertOk()
+            ->assertDontSee(__('catalog.pages.product_price_history'));
+    }
+
+    public function test_price_history_is_database_append_only(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $product = $this->createProduct($category, 'History Honey');
+        $history = ProductPriceHistory::query()->where('product_id', $product->getKey())->sole();
+
+        try {
+            DB::transaction(fn () => DB::table('product_price_history')
+                ->where('id', $history->getKey())
+                ->update(['reason' => 'tampered']));
+            $this->fail('The database must reject changes to price history.');
+        } catch (QueryException $exception) {
+            $this->assertSame('P0001', $exception->getCode());
+        }
+
+        try {
+            DB::transaction(fn () => DB::table('product_price_history')
+                ->where('id', $history->getKey())
+                ->delete());
+            $this->fail('The database must reject deletion of price history.');
+        } catch (QueryException $exception) {
+            $this->assertSame('P0001', $exception->getCode());
+        }
+    }
+
     private function createAdministrator(): User
     {
         $user = User::query()->create([
@@ -235,7 +376,7 @@ class CatalogTest extends TestCase
             'name' => $name,
             'category_id' => $category->getKey(),
             'minimum_stock' => '0.500',
-            'selling_price' => '125.5000',
+            'selling_price' => '125.50',
             'max_discount_percentage' => '15',
             'is_active' => '1',
             'notes' => '',

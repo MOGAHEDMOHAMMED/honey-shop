@@ -12,7 +12,7 @@
     <div class="row">
         <aside class="col-12 col-lg-3 col-xl-2 app-sidebar p-3 d-flex flex-column">
             <a class="app-brand d-flex align-items-center mb-4"
-               href="{{ route(auth()->user()->can('catalog.products.view') ? 'products.index' : 'categories.index') }}">
+               href="{{ route('home') }}">
                 <span class="app-brand-mark">ع</span>
                 <span>{{ __('catalog.app_name') }}</span>
             </a>
@@ -27,6 +27,25 @@
                        href="{{ route('categories.index') }}">{{ __('catalog.navigation.categories') }}</a>
                 @endcan
             </nav>
+            @if (auth()->user()->can('suppliers.view')
+                || auth()->user()->can('opening-inventory.view')
+                || auth()->user()->can('purchases.view'))
+                <div class="small text-white-50 mb-2">{{ __('catalog.navigation.procurement') }}</div>
+                <nav class="sidebar-nav mb-4">
+                    @can('suppliers.view')
+                        <a class="sidebar-link {{ request()->routeIs('suppliers.*') ? 'active' : '' }}"
+                           href="{{ route('suppliers.index') }}">{{ __('catalog.navigation.suppliers') }}</a>
+                    @endcan
+                    @can('opening-inventory.view')
+                        <a class="sidebar-link {{ request()->routeIs('opening-inventory.*') ? 'active' : '' }}"
+                           href="{{ route('opening-inventory.index') }}">{{ __('catalog.navigation.opening_inventory') }}</a>
+                    @endcan
+                    @can('purchases.view')
+                        <a class="sidebar-link {{ request()->routeIs('purchases.*') ? 'active' : '' }}"
+                           href="{{ route('purchases.index') }}">{{ __('catalog.navigation.purchases') }}</a>
+                    @endcan
+                </nav>
+            @endif
             <div class="mt-lg-auto border-top border-secondary pt-3">
                 <div class="small mb-2">{{ auth()->user()->display_name }}</div>
                 <form method="post" action="{{ route('logout') }}">

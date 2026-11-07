@@ -164,20 +164,26 @@ BEGIN
     END IF;
 
     INSERT INTO business_transactions (
-        transaction_type, status, created_by, approved_by, approved_at
-    ) VALUES ('opening_inventory', 'approved', test_user, test_user, now())
+        transaction_type, status, created_by
+    ) VALUES ('opening_inventory', 'draft', test_user)
     RETURNING id INTO opening_tx;
     INSERT INTO opening_inventory (transaction_id, effective_at)
     VALUES (opening_tx, now());
-    INSERT INTO opening_inventory_lines (transaction_id, product_id, quantity)
-    VALUES (opening_tx, honey_id, 500)
+    INSERT INTO opening_inventory_lines (
+        transaction_id, product_id, quantity, entered_quantity, input_unit, conversion_factor
+    ) VALUES (opening_tx, honey_id, 500, 500, 'KG', 1)
     RETURNING id INTO opening_honey_line_id;
-    INSERT INTO opening_inventory_lines (transaction_id, product_id, quantity)
-    VALUES (opening_tx, ghee_id, 20)
+    INSERT INTO opening_inventory_lines (
+        transaction_id, product_id, quantity, entered_quantity, input_unit, conversion_factor
+    ) VALUES (opening_tx, ghee_id, 20, 20, 'CAN', 1)
     RETURNING id INTO opening_ghee_line_id;
-    INSERT INTO opening_inventory_lines (transaction_id, product_id, quantity)
-    VALUES (opening_tx, nuts_id, 50)
+    INSERT INTO opening_inventory_lines (
+        transaction_id, product_id, quantity, entered_quantity, input_unit, conversion_factor
+    ) VALUES (opening_tx, nuts_id, 50, 50, 'KG', 1)
     RETURNING id INTO opening_nuts_line_id;
+    UPDATE business_transactions
+    SET status = 'approved', approved_by = test_user, approved_at = now()
+    WHERE id = opening_tx;
     INSERT INTO inventory_movements (
         transaction_id, product_id, movement_type, quantity_delta, base_unit, source_id
     ) VALUES
@@ -336,6 +342,25 @@ BEGIN
     END;
     IF NOT rejected THEN
         RAISE EXCEPTION 'A non-YER sales invoice was accepted';
+    END IF;
+
+    INSERT INTO business_transactions (
+        transaction_type, status, created_by, approved_by, approved_at
+    ) VALUES ('sale', 'draft', test_user, NULL, NULL)
+    RETURNING id INTO sale_tx;
+    INSERT INTO sales_invoices (
+        transaction_id, invoice_number, customer_id, sales_channel, currency_code,
+        products_subtotal, final_total
+    ) VALUES (
+        sale_tx, '__sales_rounding_test__', customer_id, 'direct', 'YER', 0, 0
+    );
+    INSERT INTO sales_lines (
+        transaction_id, product_id, entered_quantity, input_unit,
+        conversion_factor, unit_price, discount_amount
+    ) VALUES (sale_tx, honey_id, 0.5, 'KG', 1, 0.01, 0.01)
+    RETURNING line_total INTO amount_value;
+    IF amount_value <> 0 THEN
+        RAISE EXCEPTION 'Sales line did not round gross before applying the discount: %', amount_value;
     END IF;
 
     INSERT INTO business_transactions (

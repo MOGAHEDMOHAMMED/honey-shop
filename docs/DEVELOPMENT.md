@@ -34,7 +34,7 @@ The application uses local file sessions/cache, encrypted session contents, sync
 
 The database schema is managed only by the ordered SQL migrations in `database/migrations`. Never run `php artisan migrate`, `migrate:fresh`, or `db:wipe`.
 
-The development database already has migrations `001`–`009` applied. Start the app and seed the idempotent catalog permissions:
+The development database has migrations `001`–`012` applied. Start the app and seed the idempotent catalog, price-history, supplier, opening-inventory, and purchase permissions:
 
 ```powershell
 docker compose run --rm app php artisan db:seed --class="Database\Seeders\CatalogPermissionsSeeder" --force
@@ -59,7 +59,7 @@ The command requires a unique username, display name, a confirmed password of 12
 
 ## Tests
 
-Laravel tests must use the separate `honey_shop_test` database. It already exists locally and was initialized with SQL migrations `001`–`009`. Test setup forcibly selects that database, opens a transaction, and rolls it back after each test. Do not use Laravel `RefreshDatabase` or run destructive tests against `honey_shop`.
+Laravel tests must use the separate `honey_shop_test` database. It already exists locally and is initialized with SQL migrations `001`–`012`. Test setup forcibly selects that database, opens a transaction, and rolls it back after each test. Do not use Laravel `RefreshDatabase` or run destructive tests against `honey_shop`.
 
 For a new local database environment, inspect first and create the test database only if it does not exist:
 
@@ -89,7 +89,7 @@ Get-Content database\tests\003_business_rules_simplification.sql -Raw |
   docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
 ```
 
-The SQL integration test uses `BEGIN`/`ROLLBACK`. Check exit status and output; do not infer success from command startup.
+The SQL integration test uses `BEGIN`/`ROLLBACK`; run it against the development database after verifying that its schema history is current. Check exit status and output; do not infer success from command startup.
 
 ## Useful commands
 

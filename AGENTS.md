@@ -7,12 +7,13 @@ Honey Shop is a web management system for a shop selling honey, ghee, and nuts. 
 Current implementation:
 
 - Laravel 13.40.0, PHP 8.3.36, Composer 2.8.10.
-- PostgreSQL 17.11 with migrations `001`–`009` applied to the development database.
+- PostgreSQL 17.11 with migrations `001`–`012` applied to the development database.
 - Blade, Bootstrap 5.3.8 RTL, vanilla JavaScript, and Vite 8.3.6.
 - Existing `app_users`, roles, and permissions tables for authentication/authorization.
-- Functional login, health checks, product categories, and products.
+- Functional login, health checks, product categories, products with price history, supplier management, opening inventory, and purchase invoices.
+- Migrations `001`–`012` are applied to both `honey_shop` and the isolated `honey_shop_test` database.
 - The host PHP CLI is 8.0.30 and is incompatible with Laravel 13. Use the PHP 8.3 Compose service for Artisan and Composer commands.
-- See [docs/ROADMAP.md](docs/ROADMAP.md) for what has not been implemented.
+- See [docs/ROADMAP.md](docs/ROADMAP.md) for the implemented procurement scope and what remains.
 
 ## Start every task
 
@@ -32,13 +33,21 @@ Current implementation:
 
 ## Database and migration rules
 
-- The existing PostgreSQL schema is authoritative. Current applied SQL versions are `001` through `009`.
+- The existing PostgreSQL schema is authoritative. Current applied SQL versions are `001` through `012`.
 - SQL files in `database/migrations` are the only schema migration system. Never edit an applied migration or run `php artisan migrate`, `migrate:fresh`, or `db:wipe`.
 - Any schema change must be a reviewed, forward-only SQL migration with the next sequence. Inspect affected data first and stop if preservation requires an unresolved transformation.
 - Do not create Laravel migration files or duplicate existing tables. Map Eloquent names, UUID keys, timestamps, enum values, generated columns, and relationships to the real schema.
 - Use transactions for multi-step writes. Respect constraints and triggers; do not disable them to make a request pass.
 - Business rules include YER only; honey/nuts `KG`, ghee `CAN`; honey gallon conversion `7 KG`; nonnegative stock; source-linked, idempotent inventory movement; line-specific returns; and append-only financial/inventory ledgers.
 - The current schema has **no `product_prices` table**. Applied migration `003` removed it; selling price and maximum discount ratio live on `products`. Do not recreate it without an approved forward schema change.
+- Beekeepers use the existing `suppliers` table and supplier-type reference; never add a separate beekeeper entity.
+- YER monetary values use exact decimal arithmetic and two-place `ROUND_HALF_UP`; never use PHP floats for financial calculations. Purchase unit cost includes all acquisition costs; do not add a separate cost-allocation subsystem.
+- Product selling-price and maximum-discount changes are append-only history events. They are distinct from the unit-price/discount snapshots required on approved future sales lines.
+- Opening inventory and purchase drafts do not affect stock or supplier balances. Approval must atomically update transaction status, source-linked inventory movements, trigger-maintained balances, and supplier ledger entries exactly once. Preserve all approved financial/inventory history.
+- Only one opening-inventory document may be approved. Opening inventory records quantities and units; the current schema has no approved opening-cost/valuation method, so do not invent one.
+- Purchase invoices keep the supplier's original invoice number separately from an internal `PUR-...` reference. A zero-total draft is allowed, but approval is rejected because supplier ledger entries require a positive posting.
+- Sales invoice series are approved for future work: Honey `74`, Ghee `84`, Nuts `94`, suffixes begin at `1`; allocate permanent string invoice numbers only in approval transactions using concurrency-safe counters and unique constraints. Mixed-category sales require an explicit series selection.
+- Full external-order cancellation is allowed only after all shipped goods return; reverse the full receivable but refund only actual collections net of prior refunds, via a real funded-account refund voucher, atomically with inventory and ledger changes. These sales/cancellation workflows are not implemented until their milestones.
 
 ## Security and validation
 
@@ -73,7 +82,7 @@ Get-Content database\tests\003_business_rules_simplification.sql -Raw |
   docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
 ```
 
-Laravel tests are guarded to use the separate `honey_shop_test` database. They wrap each test in a transaction and roll it back. Never run destructive or schema-building Laravel tests against `honey_shop`.
+Laravel tests are guarded to use the separate `honey_shop_test` database (migrations `001`–`012`). They wrap each test in a transaction and roll it back. Never run destructive or schema-building Laravel tests against `honey_shop`.
 
 Database SQL migrations must be applied manually, in order, only after inspecting `schema_migrations`. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the safe procedure.
 

@@ -67,9 +67,9 @@
                         <td>{{ __('catalog.categories.'.$product->category->name) }}</td>
                         <td>{{ __('catalog.units.'.$product->base_unit->value) }}</td>
                         <td dir="ltr" class="text-end">
-                            {{ number_format((float) $product->selling_price, 4) }} {{ __('catalog.currency') }}
+                            {{ \App\Support\Money::format($product->selling_price) }} {{ __('catalog.currency') }}
                         </td>
-                        <td>{{ number_format((float) $product->max_discount_rate * 100, 4) }}%</td>
+                        <td>{{ \App\Support\Money::format(bcmul((string) $product->max_discount_rate, '100', 4), 4) }}%</td>
                         <td>
                             {{ number_format((float) ($product->inventoryBalance?->quantity ?? 0), 3) }}
                             {{ __('catalog.units.'.$product->base_unit->value) }}

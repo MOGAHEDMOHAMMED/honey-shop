@@ -16,7 +16,7 @@ Do not disclose or commit `.env` values.
 
 ## Schema and migration history
 
-The ordered SQL files in `database/migrations` are the sole schema-management system. The live development database records `001_initial_schema` through `009_approval_and_return_guards` in `schema_migrations`.
+The ordered SQL files in `database/migrations` are the sole schema-management system. Both the live development database and isolated test database record migrations `001` through `012` in `schema_migrations`.
 
 Before any migration:
 
@@ -38,11 +38,22 @@ Get-Content database\tests\003_business_rules_simplification.sql -Raw |
 
 Run Laravel feature tests only on the separate `honey_shop_test` database as described in [../docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
+## Procurement and price-history schema
+
+- Migration `010` adds append-only `product_price_history`, case-insensitive supplier-name uniqueness within a supplier type, supplier invoice references, source-keyed purchase payables, input-unit snapshots for opening inventory, and final-document/one-time-opening guards.
+- Migration `011` applies two-decimal precision to product/purchase/supplier amounts and rounds purchase generated line values in PostgreSQL.
+- Migration `012` applies two-decimal precision to remaining YER financial columns and aligns the generated future sales-line net amount with the approved gross-rounding-before-discount rule.
+- Do not recreate `product_prices`; live prices and maximum discounts remain on `products`.
+- Opening-inventory documents store quantities and unit conversions only; no opening valuation method is approved.
+
 ## Current database rules
 
 - Units are enums/check-constrained: base `KG`/`CAN`, input `KG`/`GALLON`/`CAN`; one honey gallon is exactly 7 KG.
 - Only YER is active and valid for first-release business transactions. Inactive historical currency reference rows are preserved.
 - Inventory movements must match their source detail and are unique per movement type/source; triggers update balances atomically and reject negative stock.
+- Draft purchases and opening inventory do not post stock or supplier balances. Purchase approval posts source-linked movements and one supplier payable atomically. Only one opening-inventory document may be approved.
+- YER monetary columns use two decimal places. Exchange-rate source/target values remain separate reference data and are not used for business currency conversion.
+- Supplier ledger entries and product price history are append-only. Approved purchase and opening-inventory documents/lines are immutable.
 - Approved sales and purchase lines are immutable except for transaction-safe cumulative-return counters.
 - Sales/purchase return details reference original lines. Full external-order cancellation requires complete physical return and cannot follow partial returns.
 - Expenses use a generated outstanding balance; approved payment vouchers update expense and account ledger atomically.

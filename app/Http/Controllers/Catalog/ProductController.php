@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Catalog\ProductRequest;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductPriceHistory;
 use App\Services\Catalog\ProductCatalogService;
 use App\Support\CatalogRules;
 use Illuminate\Http\RedirectResponse;
@@ -65,8 +66,16 @@ class ProductController extends Controller
     public function show(Product $product): View
     {
         $product->load(['category', 'inventoryBalance']);
+        $priceHistory = null;
+        if (auth()->user()->can('catalog.products.price-history.view')) {
+            $priceHistory = ProductPriceHistory::query()
+                ->where('product_id', $product->getKey())
+                ->with('actor')
+                ->orderByDesc('created_at')
+                ->paginate(10);
+        }
 
-        return view('modules.catalog.products.show', compact('product'));
+        return view('modules.catalog.products.show', compact('product', 'priceHistory'));
     }
 
     public function edit(Product $product): View

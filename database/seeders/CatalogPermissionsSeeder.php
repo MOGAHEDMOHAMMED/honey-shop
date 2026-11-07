@@ -13,6 +13,14 @@ class CatalogPermissionsSeeder extends Seeder
         'catalog.categories.manage' => 'Activate or deactivate product categories',
         'catalog.products.view' => 'View products',
         'catalog.products.manage' => 'Create and update products',
+        'catalog.products.price-history.view' => 'View product price history',
+        'suppliers.view' => 'View suppliers',
+        'suppliers.manage' => 'Create and update suppliers',
+        'opening-inventory.view' => 'View opening inventory',
+        'opening-inventory.manage' => 'Create and approve opening inventory',
+        'purchases.view' => 'View purchase invoices',
+        'purchases.manage' => 'Create and edit draft purchases',
+        'purchases.approve' => 'Approve purchase invoices',
     ];
 
     public function run(): void
@@ -38,6 +46,7 @@ class CatalogPermissionsSeeder extends Seeder
             $readPermissions = [
                 'catalog.categories.view',
                 'catalog.products.view',
+                'catalog.products.price-history.view',
             ];
             $assignments = [];
 

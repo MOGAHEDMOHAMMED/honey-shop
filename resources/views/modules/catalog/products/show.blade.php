@@ -36,12 +36,14 @@
             <div class="col-12 col-md-6">
                 <div class="text-secondary small">{{ __('catalog.fields.selling_price') }}</div>
                 <div class="fw-semibold" dir="ltr">
-                    {{ number_format((float) $product->selling_price, 4) }} {{ __('catalog.currency') }}
+                    {{ \App\Support\Money::format($product->selling_price) }} {{ __('catalog.currency') }}
                 </div>
             </div>
             <div class="col-12 col-md-6">
                 <div class="text-secondary small">{{ __('catalog.fields.max_discount_percentage') }}</div>
-                <div class="fw-semibold">{{ number_format((float) $product->max_discount_rate * 100, 4) }}%</div>
+                <div class="fw-semibold">
+                    {{ \App\Support\Money::format(bcmul((string) $product->max_discount_rate, '100', 4), 4) }}%
+                </div>
             </div>
             <div class="col-12 col-md-6">
                 <div class="text-secondary small">{{ __('catalog.fields.minimum_stock') }}</div>
@@ -69,4 +71,65 @@
         </div>
     </div>
 </section>
+
+@can('catalog.products.price-history.view')
+    <section class="card page-card mt-4">
+        <div class="card-body">
+            <h2 class="h5 mb-3">{{ __('catalog.pages.product_price_history') }}</h2>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                    <tr>
+                        <th>{{ __('catalog.fields.changed_at') }}</th>
+                        <th>{{ __('catalog.fields.previous_price') }}</th>
+                        <th>{{ __('catalog.fields.new_price') }}</th>
+                        <th>{{ __('catalog.fields.previous_discount') }}</th>
+                        <th>{{ __('catalog.fields.new_discount') }}</th>
+                        <th>{{ __('catalog.fields.changed_by') }}</th>
+                        <th>{{ __('catalog.fields.change_reason') }}</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @forelse ($priceHistory as $history)
+                        <tr>
+                            <td>{{ $history->created_at->format('Y-m-d H:i') }}</td>
+                            <td dir="ltr">
+                                @if ($history->previous_selling_price !== null)
+                                    {{ \App\Support\Money::format($history->previous_selling_price) }}
+                                    {{ __('catalog.currency') }}
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td dir="ltr">
+                                {{ \App\Support\Money::format($history->new_selling_price) }}
+                                {{ __('catalog.currency') }}
+                            </td>
+                            <td>
+                                @if ($history->previous_max_discount_rate !== null)
+                                    {{ \App\Support\Money::format(bcmul((string) $history->previous_max_discount_rate, '100', 4), 4) }}%
+                                @else
+                                    —
+                                @endif
+                            </td>
+                            <td>
+                                {{ \App\Support\Money::format(bcmul((string) $history->new_max_discount_rate, '100', 4), 4) }}%
+                            </td>
+                            <td>{{ $history->actor?->display_name ?: '—' }}</td>
+                            <td>{{ $history->reason ?: '—' }}</td>
+                        </tr>
+                    @empty
+                        <tr>
+                            <td colspan="7" class="text-center text-secondary py-4">
+                                {{ __('catalog.messages.no_price_history') }}
+                            </td>
+                        </tr>
+                    @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-3">{{ $priceHistory->links() }}</div>
+        </div>
+    </section>
+@endcan
 @endsection

@@ -4,6 +4,7 @@ namespace App\Services\Catalog;
 
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\ProductPriceHistory;
 use App\Support\CatalogRules;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
@@ -64,6 +65,9 @@ class ProductCatalogService
                     ]);
                 }
 
+                $previousPrice = $product->exists ? $product->selling_price : null;
+                $previousDiscountRate = $product->exists ? $product->max_discount_rate : null;
+
                 $product->fill([
                     'sku' => $data['sku'] ?: null,
                     'name' => $data['name'],
@@ -76,6 +80,22 @@ class ProductCatalogService
                     'max_discount_rate' => bcdiv((string) $data['max_discount_percentage'], '100', 6),
                 ]);
                 $product->save();
+
+                $priceChanged = $previousPrice === null
+                    || bccomp((string) $previousPrice, (string) $product->selling_price, 2) !== 0
+                    || bccomp((string) $previousDiscountRate, (string) $product->max_discount_rate, 6) !== 0;
+
+                if ($priceChanged) {
+                    ProductPriceHistory::query()->create([
+                        'product_id' => $product->getKey(),
+                        'previous_selling_price' => $previousPrice,
+                        'new_selling_price' => $product->selling_price,
+                        'previous_max_discount_rate' => $previousDiscountRate,
+                        'new_max_discount_rate' => $product->max_discount_rate,
+                        'actor_user_id' => auth()->id(),
+                        'reason' => ($data['price_change_reason'] ?? null) ?: null,
+                    ]);
+                }
 
                 return $product;
             });

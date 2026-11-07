@@ -12,11 +12,11 @@ The host PHP CLI is 8.0.30 and does not satisfy Laravel 13. Use the Compose PHP 
 
 ## Application organization
 
-- `app/Models`: explicit mappings for `app_users`, roles, permissions, categories, products, and inventory balances.
-- `app/Http/Controllers`: auth, health, and catalog request/response coordination.
-- `app/Http/Requests`: validation for login, category status, and product create/update.
-- `app/Services/Catalog`: transactional category-status and product operations.
-- `app/Support/CatalogRules.php`: supported category-to-base-unit mapping.
+- `app/Models`: explicit mappings for users/roles/permissions, categories/products/price history, suppliers, purchase invoices/lines, opening inventory, business transactions, and supplier ledger entries.
+- `app/Http/Controllers`: auth, health, catalog, supplier, purchase, and opening-inventory request/response coordination.
+- `app/Http/Requests`: server-side validation for authentication and catalog, supplier, purchase, and opening-inventory operations.
+- `app/Services`: transactional catalog/history, supplier, purchase draft/approval, and opening-inventory workflows.
+- `app/Support`: category/base-unit rules, transaction input-unit conversion, and exact decimal YER money operations.
 - `app/Console/Commands`: interactive first-administrator provisioning.
 - `resources/views`: Arabic RTL login, shared layouts, category and product pages, and safe error pages.
 - `lang/ar`: Arabic interface and validation strings.
@@ -29,7 +29,7 @@ Controllers remain thin. Catalog writes use service transactions; controllers do
 
 Laravel's session guard authenticates the `App\Models\User` model mapped to `app_users`. `password_hash` is the stored password column. Successful login regenerates the session; logout invalidates it and regenerates the CSRF token.
 
-Roles and permissions map to `roles`, `permissions`, `user_roles`, and `role_permissions`. The catalog seeder adds four catalog permission codes, assigns catalog management to Administrator and Inventory and Purchasing User, and read-only access to Sales User. Administrator receives the app-wide Gate bypass. No parallel authorization tables are created.
+Roles and permissions map to `roles`, `permissions`, `user_roles`, and `role_permissions`. The idempotent permission seeder provides catalog, product price-history, supplier, opening-inventory, and purchase permissions. Administrator and Inventory and Purchasing User receive the management/approval permissions; Sales User receives only catalog and price-history read access. Administrator receives the app-wide Gate bypass. No parallel authorization tables are created.
 
 `app:admin-create` locks the existing Administrator role, refuses to create a second administrator, hashes the interactive password, and assigns the existing role in one transaction.
 
@@ -37,7 +37,11 @@ Roles and permissions map to `roles`, `permissions`, `user_roles`, and `role_per
 
 The existing schema is the source of truth. Laravel migrations are not used; never run `php artisan migrate`. PostgreSQL SQL migrations are applied manually in sequence after checking `schema_migrations`. Existing database triggers and constraints remain enabled.
 
-The live schema has no `product_prices` table: migration `003` removed it and stores `selling_price` and `max_discount_rate` directly on `products`. The application maps that actual schema without adding a duplicate price table or columns.
+The live schema has no `product_prices` table: migration `003` removed it and stores `selling_price` and `max_discount_rate` directly on `products`. Migration `010` added immutable `product_price_history` and procurement/opening-inventory support; migrations `011` and `012` apply two-decimal YER precision to purchase and existing financial columns. The application maps those actual tables without recreating `product_prices`.
+
+Purchase and opening-inventory writes use service transactions. Approval locks the document and relevant rows, transitions the business transaction, creates source-linked inventory movements, and (for purchases) adds one supplier payable. Existing PostgreSQL triggers update balances and enforce nonnegative stock, movement provenance, append-only ledgers, final-document immutability, and one-time opening inventory. Drafts never post stock or supplier balances.
+
+Purchase monetary calculations are generated in PostgreSQL using `NUMERIC` and `ROUND(..., 2)`. PHP `Money` uses BCMath for exact half-up operations and formatting; it does not use floating-point arithmetic for financial values.
 
 ## Sessions, cache, errors, health
 
