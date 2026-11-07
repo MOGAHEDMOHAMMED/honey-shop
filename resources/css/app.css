@@ -1,0 +1,94 @@
+@import 'bootstrap/dist/css/bootstrap.rtl.min.css';
+
+:root {
+    --honey-ink: #263238;
+    --honey-gold: #b7791f;
+    --honey-bg: #f5f6f8;
+}
+
+body {
+    min-width: 320px;
+    background: var(--honey-bg);
+    color: var(--honey-ink);
+    font-family: Tahoma, Arial, sans-serif;
+}
+
+.app-sidebar {
+    background: #24323d;
+    color: #fff;
+    min-height: 100vh;
+}
+
+.app-brand {
+    color: #fff;
+    font-weight: 700;
+    text-decoration: none;
+}
+
+.app-brand-mark {
+    align-items: center;
+    background: var(--honey-gold);
+    border-radius: .75rem;
+    display: inline-flex;
+    height: 2.5rem;
+    justify-content: center;
+    margin-left: .65rem;
+    width: 2.5rem;
+}
+
+.sidebar-link {
+    border-radius: .5rem;
+    color: #d7e0e5;
+    display: block;
+    margin: .2rem 0;
+    padding: .7rem .85rem;
+    text-decoration: none;
+}
+
+.sidebar-link:hover,
+.sidebar-link.active {
+    background: #344a59;
+    color: #fff;
+}
+
+.main-content {
+    min-width: 0;
+}
+
+.page-card {
+    border: 0;
+    border-radius: .85rem;
+    box-shadow: 0 .25rem 1rem rgb(28 39 49 / 5%);
+}
+
+.table thead th {
+    background: #f2f4f6;
+    color: #53636e;
+    font-size: .9rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.form-label {
+    font-weight: 600;
+}
+
+.required-mark {
+    color: #b42318;
+}
+
+@media (max-width: 991.98px) {
+    .app-sidebar {
+        min-height: auto;
+    }
+
+    .sidebar-nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: .25rem;
+    }
+
+    .sidebar-link {
+        margin: 0;
+    }
+}

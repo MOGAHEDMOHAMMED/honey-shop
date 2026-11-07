@@ -1,0 +1,63 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+use RuntimeException;
+
+class CatalogPermissionsSeeder extends Seeder
+{
+    private const PERMISSIONS = [
+        'catalog.categories.view' => 'View product categories',
+        'catalog.categories.manage' => 'Activate or deactivate product categories',
+        'catalog.products.view' => 'View products',
+        'catalog.products.manage' => 'Create and update products',
+    ];
+
+    public function run(): void
+    {
+        DB::transaction(function (): void {
+            $permissions = [];
+            foreach (self::PERMISSIONS as $code => $description) {
+                $permissions[] = ['code' => $code, 'description' => $description];
+            }
+            DB::table('permissions')->upsert($permissions, ['code'], ['description']);
+
+            $roles = DB::table('roles')
+                ->whereIn('name', ['Administrator', 'Inventory and Purchasing User', 'Sales User'])
+                ->pluck('id', 'name');
+
+            foreach (['Administrator', 'Inventory and Purchasing User', 'Sales User'] as $name) {
+                if (! $roles->has($name)) {
+                    throw new RuntimeException("Required role not found: {$name}");
+                }
+            }
+
+            $allPermissions = array_keys(self::PERMISSIONS);
+            $readPermissions = [
+                'catalog.categories.view',
+                'catalog.products.view',
+            ];
+            $assignments = [];
+
+            foreach (['Administrator', 'Inventory and Purchasing User'] as $roleName) {
+                foreach ($allPermissions as $permission) {
+                    $assignments[] = [
+                        'role_id' => $roles[$roleName],
+                        'permission_code' => $permission,
+                    ];
+                }
+            }
+
+            foreach ($readPermissions as $permission) {
+                $assignments[] = [
+                    'role_id' => $roles['Sales User'],
+                    'permission_code' => $permission,
+                ];
+            }
+
+            DB::table('role_permissions')->insertOrIgnore($assignments);
+        });
+    }
+}

@@ -1,69 +1,85 @@
 # Shared agent instructions
 
-## Project
+## Project purpose and current state
 
-Honey Shop Management System: a web-based business-management application for a shop selling honey, ghee, and nuts. The detailed original requirements are in [Software Requirements Analysis & Development Plan.md](Software%20Requirements%20Analysis%20%26%20Development%20Plan.md); current approved scope and decisions are in [docs/DECISIONS.md](docs/DECISIONS.md).
+Honey Shop is a web management system for a shop selling honey, ghee, and nuts. This repository contains the Laravel application, project documentation, PostgreSQL 17 Docker Compose environment, existing SQL schema migrations, and PostgreSQL integration tests.
 
-## Actual technology and status
+Current implementation:
 
-- Database: PostgreSQL 17 (the running development server reported 17.11).
-- Local database service: Docker Compose using `postgres:17-alpine`.
-- Schema: versioned PostgreSQL SQL migrations in `database/migrations`.
-- The repository currently has no application source, package/dependency manifest, backend, frontend, CI configuration, or application test runner. Do not present any as already established.
-- .NET SDK 10 is installed on the current workstation, but .NET is not an approved project choice. The recommended application stack is documented as pending approval in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) and [docs/DECISIONS.md](docs/DECISIONS.md).
+- Laravel 13.40.0, PHP 8.3.36, Composer 2.8.10.
+- PostgreSQL 17.11 with migrations `001`–`009` applied to the development database.
+- Blade, Bootstrap 5.3.8 RTL, vanilla JavaScript, and Vite 8.3.6.
+- Existing `app_users`, roles, and permissions tables for authentication/authorization.
+- Functional login, health checks, product categories, and products.
+- The host PHP CLI is 8.0.30 and is incompatible with Laravel 13. Use the PHP 8.3 Compose service for Artisan and Composer commands.
+- See [docs/ROADMAP.md](docs/ROADMAP.md) for what has not been implemented.
 
 ## Start every task
 
-1. Read this file, the relevant documents under `docs`, and the applicable sections of the requirements plan.
-2. Inspect the current files and existing implementation before creating an alternative or parallel implementation.
-3. Check Git with `git status --short --branch` before editing. This workspace has not been detected as a Git repository; report that fact and do not initialize one without approval.
-4. For database work, inspect Docker Compose health, PostgreSQL version, `schema_migrations`, relevant data, constraints, indexes, and triggers. Verify actual database state; a migration file alone does not prove it ran.
-5. Preserve pre-existing work. Never reset, clean, delete, or overwrite unrelated files or data. If a change risks losing existing records, stop and report the exact conflict.
-6. Resolve business or architecture ambiguity from approved decisions where possible. Otherwise document it and ask before making a material choice.
+1. Read this file and the relevant project documents under `docs`.
+2. Inspect the existing implementation before creating an alternative. Check `git status --short --branch` and preserve staged, unstaged, and untracked work.
+3. For database work, check Compose health, PostgreSQL version, `schema_migrations`, relevant records, constraints, indexes, and triggers. Do not infer database state from files alone.
+4. Read the applicable existing SQL migrations and tests before changing database behavior.
+5. Keep changes scoped. Ask before changing unresolved business rules or making destructive changes.
 
-## Architecture and coding rules
+## Approved technologies and architecture
 
-- Follow the architecture actually present. Until a backend is approved, make database/documentation changes only; do not scaffold an application.
-- Keep business rules out of presentation code. When the application is authorized, use a small modular application with clear service/data-access boundaries and database transactions for related writes.
-- Reuse existing code and patterns. Do not create a second implementation of an existing capability.
-- Use descriptive names. Existing SQL uses lowercase `snake_case` tables/columns and uppercase SQL keywords; preserve that convention. Migration filenames are sequential and descriptive, for example `010_short_business_change.sql`.
-- Prefer small, focused changes. Do not add a dependency, service, abstraction, or feature without a documented need.
-- Validate inputs server-side. Use parameterized database operations. Never place secrets in source or documentation; keep local credentials in ignored `.env`.
-- Do not log passwords, tokens, or sensitive customer data. Surface failures; do not silently ignore database or validation errors.
-- Do not implement screens or business modules outside the task's requested scope.
+- One Laravel modular monolith; do not add another backend or a separate frontend.
+- PHP 8.3+, Laravel 13, PostgreSQL 17, Eloquent/Query Builder, Blade, Bootstrap 5 RTL, vanilla JavaScript, and Vite.
+- Use Laravel conventions: thin controllers, Form Requests for validation, focused services for coordinated business rules, Eloquent models with explicit schema mappings, and Gates/Policies for authorization.
+- Do not add React, Vue, TypeScript, Livewire, Inertia, Redis, microservices, repository frameworks, or unnecessary abstractions/packages.
+- Keep user-facing text Arabic and mark pages `lang="ar"` and `dir="rtl"`. Do not add runtime CDN dependencies.
 
-## Database management
+## Database and migration rules
 
-- PostgreSQL 17 is the source database. Existing applied migrations are `001` through `009`; verify with `schema_migrations` before work.
-- Never edit an applied migration. Add the next numbered forward migration.
-- Inspect data and provide a preflight guard before any migration that could reject, transform, or remove existing records. Never drop/recreate the database or Docker volume.
-- Each migration must be transactional when PostgreSQL supports it. Keep seeds idempotent and migration history accurate.
-- Preserve YER-only rules, KG/CAN base units, KG/GALLON/CAN entered units, 7 KG per honey gallon, nonnegative inventory, source-idempotent movements, line-specific returns, full-only order cancellation, and voucher-linked expense payments.
-- Keep database logic and application responsibilities explicit. Unit compatibility, authorization, delivery expense orchestration, representative-account GetOrCreate, and coordinated business workflows belong in application services as documented.
+- The existing PostgreSQL schema is authoritative. Current applied SQL versions are `001` through `009`.
+- SQL files in `database/migrations` are the only schema migration system. Never edit an applied migration or run `php artisan migrate`, `migrate:fresh`, or `db:wipe`.
+- Any schema change must be a reviewed, forward-only SQL migration with the next sequence. Inspect affected data first and stop if preservation requires an unresolved transformation.
+- Do not create Laravel migration files or duplicate existing tables. Map Eloquent names, UUID keys, timestamps, enum values, generated columns, and relationships to the real schema.
+- Use transactions for multi-step writes. Respect constraints and triggers; do not disable them to make a request pass.
+- Business rules include YER only; honey/nuts `KG`, ghee `CAN`; honey gallon conversion `7 KG`; nonnegative stock; source-linked, idempotent inventory movement; line-specific returns; and append-only financial/inventory ledgers.
+- The current schema has **no `product_prices` table**. Applied migration `003` removed it; selling price and maximum discount ratio live on `products`. Do not recreate it without an approved forward schema change.
 
-## Commands
+## Security and validation
 
-Run from the project root in PowerShell:
+- Validate all input server-side. Use parameterized Eloquent/Query Builder operations.
+- Store passwords only as hashes through Laravel `Hash`; never log passwords or session secrets.
+- Use the existing `app_users`, `roles`, `permissions`, `user_roles`, and `role_permissions` tables. Do not introduce a parallel identity or permission system.
+- Keep `.env` and secret files ignored. Commit `.env.example`, never local credentials.
+- Keep debug output disabled outside isolated tests. Do not expose SQL, credentials, stack traces, or internal connection details in responses.
+- Use file sessions/cache and synchronous queues unless an approved requirement changes them. Do not add Redis.
+
+## Coding and naming conventions
+
+- Follow Laravel/PHP conventions and PSR-12; use Laravel Pint for formatting.
+- Use descriptive English identifiers and translation files for Arabic interface text.
+- Preserve existing lower-case SQL `snake_case` naming and database constraints.
+- Do not add comments unless they clarify non-obvious behavior.
+- Keep category semantics fixed to Honey, Ghee, and Nuts. Their base-unit mapping is implemented centrally in `App\Support\CatalogRules`.
+- Product edits must not change stock. Do not add hard-delete operations for products with history.
+
+## Development and verification
+
+Run commands from the project root in PowerShell. Use the Compose PHP runtime:
 
 ```powershell
 docker compose ps
-docker compose exec -T postgres psql -U honey_shop -d honey_shop -c "SELECT current_setting('server_version');"
-docker compose exec -T postgres psql -U honey_shop -d honey_shop -c "SELECT version FROM schema_migrations ORDER BY version;"
+docker compose exec -T app php artisan about
+docker compose exec -T app php artisan route:list
+docker compose exec -T app php artisan test
+npm ci
+npm run build
 Get-Content database\tests\003_business_rules_simplification.sql -Raw |
   docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
 ```
 
-The database test script wraps fixtures in a transaction and rolls them back. Check its exit code and output; do not claim tests passed unless executed.
+Laravel tests are guarded to use the separate `honey_shop_test` database. They wrap each test in a transaction and roll it back. Never run destructive or schema-building Laravel tests against `honey_shop`.
 
-To apply a pending migration, first verify its version is absent from `schema_migrations`, then pipe that migration's SQL to `docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1`. Apply migrations in filename order. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Database SQL migrations must be applied manually, in order, only after inspecting `schema_migrations`. See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for the safe procedure.
 
-## Git and collaboration
+## Git and handoff
 
-- Check branch/status and inspect diffs before editing and before handoff.
-- Do not discard another contributor's edits, amend or create commits, switch branches, or stage changes unless explicitly requested.
-- Keep migration and documentation edits scoped to the task. Avoid multiple agents independently editing the same files; coordinate ownership and review changes together.
-- This directory currently is not inside a Git repository. Do not imply a clean working tree or branch exists.
-
-## Handoff
-
-Keep the repository self-describing: update the directly related documentation when behavior or workflow changes. Report the verified database/migration state, commands and test results, modified files, unresolved decisions, and next recommended step. Do not rely on conversation history as project documentation.
+- Check Git status and remotes before editing, committing, or pushing. Never overwrite remote history or discard another contributor's changes.
+- Keep all agent instructions here; tool-specific instruction files should be short pointers to this document.
+- Update directly related documentation when behavior changes.
+- Report changed files, exact verification commands/results, database effects, and unresolved decisions. Never claim a test or push succeeded unless the command actually succeeded.
