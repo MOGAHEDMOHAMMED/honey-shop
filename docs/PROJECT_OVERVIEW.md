@@ -2,21 +2,27 @@
 
 ## Purpose
 
-Honey Shop is a planned web-based management system for a retail shop selling honey, ghee, and nuts. It is intended to organize products, stock, suppliers/beekeepers, customers, purchases, direct sales, external orders, returns, representatives, financial accounts, vouchers, expenses, owner withdrawals, reporting, users, and backups.
+Honey Shop is a web-based management system for a shop selling honey, ghee, and nuts. It is intended to support catalog, inventory, purchasing, sales, returns, customer/supplier balances, expenses, vouchers, representative custody, and reporting as later milestones are implemented.
 
-The detailed baseline is [Software Requirements Analysis & Development Plan.md](../Software%20Requirements%20Analysis%20%26%20Development%20Plan.md). Current first-release decisions in [DECISIONS.md](DECISIONS.md) supersede earlier conflicting requirements there.
+## Approved first-release rules
 
-## First-release scope
+- Yemeni Rial (YER) only.
+- Honey and nuts use `KG`; ghee uses `CAN`. Honey gallon input converts to exactly `7 KG`.
+- The existing PostgreSQL schema, SQL migration history, constraints, and triggers are authoritative.
+- Product category names are the three seeded categories: Honey, Ghee, and Nuts.
+- Arabic is the primary language and the application uses right-to-left layout.
 
-- YER only.
-- Product and inventory units: honey KG, nuts KG, ghee CAN; honey GALLON input converts at exactly 7 KG.
-- Inventory ledger and current balances; approved movements cannot create negative stock.
-- Purchases, sales, exact-line returns, full external-order cancellations after full physical return, and separate damaged-goods operations.
-- Customer/supplier account history, shop cash and bank accounts, representative custody accounts, vouchers, expenses, and delivery-cost portions.
-- Mobile-first, responsive, Arabic RTL experience is a product requirement; UI work has not started.
+## Implemented
 
-## Current implementation state
+- Laravel 13.40.0 modular monolith, PHP 8.3.36, PostgreSQL 17, Blade, Bootstrap 5 RTL, vanilla JavaScript, and Vite.
+- Session login against `app_users`, with roles and permissions loaded from the existing database tables.
+- Interactive one-time initial-administrator command.
+- Application and PostgreSQL readiness endpoints.
+- Category listing/search and active-state management.
+- Product listing/search/category filtering, create/edit/details, YER price and discount display, and read-only inventory balance.
 
-The workspace currently contains the requirements plan, Docker Compose PostgreSQL setup, nine applied SQL migrations, database tests, and database documentation/ERD. There is **no application/backend/frontend implementation** yet. No application screens or commercial workflows have been implemented.
+## Not implemented
 
-For actual architecture and next steps, see [ARCHITECTURE.md](ARCHITECTURE.md) and [ROADMAP.md](ROADMAP.md).
+Purchases, sales, opening inventory UI, stock workflows, returns, external orders, deliveries, expenses, vouchers, representative operations, reporting, and dashboard analytics remain future work. No screens in these areas are represented as functional.
+
+See [ARCHITECTURE.md](ARCHITECTURE.md), [DATABASE.md](DATABASE.md), and [ROADMAP.md](ROADMAP.md).

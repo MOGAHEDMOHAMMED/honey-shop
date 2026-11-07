@@ -7,6 +7,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\Role;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Tests\TestCase;
 
@@ -59,6 +60,24 @@ class CatalogTest extends TestCase
         $this->assertTrue($honey->fresh()->is_active);
     }
 
+    public function test_inactive_category_cannot_receive_an_active_product(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $product = $this->createProduct($category, 'Mountain Honey');
+        $inactiveData = $this->validProductData($category, 'Mountain Honey');
+        $inactiveData['is_active'] = '0';
+
+        $this->put(route('products.update', $product), $inactiveData)->assertRedirect();
+        $this->patch(route('categories.status', $category), ['is_active' => '0'])->assertRedirect();
+
+        $activeData = $this->validProductData($category, 'Mountain Honey');
+        $this->from(route('products.edit', $product))
+            ->put(route('products.update', $product), $activeData)
+            ->assertSessionHasErrors('category_id');
+
+        $this->assertFalse($product->fresh()->is_active);
+    }
+
     public function test_products_derive_base_units_and_yer_pricing_from_the_existing_schema(): void
     {
         $expected = [
@@ -81,7 +100,7 @@ class CatalogTest extends TestCase
             $this->assertSame('0.150000', $product->max_discount_rate);
         }
 
-        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('inventory_balances')->count());
+        $this->assertSame(0, DB::table('inventory_balances')->count());
     }
 
     public function test_product_search_and_category_filter_use_real_database_records(): void
@@ -107,7 +126,7 @@ class CatalogTest extends TestCase
         $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
         $product = $this->createProduct($category, 'Mountain Honey');
 
-        \Illuminate\Support\Facades\DB::table('inventory_balances')->insert([
+        DB::table('inventory_balances')->insert([
             'product_id' => $product->getKey(),
             'quantity' => 12.500,
             'updated_at' => now(),
@@ -119,7 +138,7 @@ class CatalogTest extends TestCase
 
         $this->assertSame(
             '12.500',
-            \Illuminate\Support\Facades\DB::table('inventory_balances')
+            DB::table('inventory_balances')
                 ->where('product_id', $product->getKey())
                 ->value('quantity'),
         );
@@ -132,7 +151,7 @@ class CatalogTest extends TestCase
         $ghee = ProductCategory::query()->where('name', 'Ghee')->firstOrFail();
         $product = $this->createProduct($honey, 'Mountain Honey');
 
-        \Illuminate\Support\Facades\DB::table('inventory_balances')->insert([
+        DB::table('inventory_balances')->insert([
             'product_id' => $product->getKey(),
             'quantity' => 1,
             'updated_at' => now(),
@@ -167,7 +186,7 @@ class CatalogTest extends TestCase
         $category = ProductCategory::query()->where('name', 'Ghee')->firstOrFail();
         $product = $this->createProduct($category, 'Clarified Ghee');
 
-        \Illuminate\Support\Facades\DB::table('inventory_balances')->insert([
+        DB::table('inventory_balances')->insert([
             'product_id' => $product->getKey(),
             'quantity' => 3.250,
             'updated_at' => now(),

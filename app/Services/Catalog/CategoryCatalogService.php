@@ -2,7 +2,6 @@
 
 namespace App\Services\Catalog;
 
-use App\Models\Product;
 use App\Models\ProductCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

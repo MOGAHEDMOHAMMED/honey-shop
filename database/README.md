@@ -1,75 +1,63 @@
-# Honey Shop database
+# PostgreSQL database
 
-The development database runs PostgreSQL 17 in Docker Compose. Its persistent data is stored in the `postgres_data` volume. SQL migrations in `database\migrations` are the source of truth for the schema.
+The application uses PostgreSQL 17 in Docker Compose. The persistent development database is `honey_shop`; its Compose volume is `postgres_data`.
 
 ## Connection
 
 | Setting | Value |
-| --- | --- |
-| Host | `localhost` |
-| Port | `5433` in the current local `.env` (`POSTGRES_PORT`) |
+|---|---|
+| Compose hostname | `postgres` |
+| Host connection | `127.0.0.1:5433` in the current local `.env` |
 | Database | `honey_shop` |
 | User | `honey_shop` |
-| Password | Local `.env` |
+| Password | Local ignored `.env` |
 
-The password file is excluded from Git. Do not commit credentials.
+Do not disclose or commit `.env` values.
 
-## Migrations
+## Schema and migration history
 
-The development database records migrations `001` through `009` in `schema_migrations`.
+The ordered SQL files in `database/migrations` are the sole schema-management system. The live development database records `001_initial_schema` through `009_approval_and_return_guards` in `schema_migrations`.
 
-For a new database, apply migrations `001` through `009` once in filename order. For an existing database, first inspect `schema_migrations` and apply only pending versions. Never edit or rerun an applied migration.
+Before any migration:
 
-```powershell
-Get-Content database\migrations\003_business_rules_simplification.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-Get-Content database\migrations\004_inventory_balance_posting_fix.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-Get-Content database\migrations\005_transaction_safe_return_limits.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-Get-Content database\migrations\006_return_counter_trigger_fix.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-Get-Content database\migrations\007_explicit_unit_checks.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-Get-Content database\migrations\008_inventory_movement_idempotency.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-Get-Content database\migrations\009_approval_and_return_guards.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
-```
+1. Check Compose/PostgreSQL health and query `schema_migrations`.
+2. Inspect affected data, constraints, indexes, and triggers.
+3. Apply only an unapplied, forward-only SQL file in sequence.
+4. Stop if preserving existing records requires an unresolved transformation.
 
-Each migration is transactional. Stop on errors, inspect the reported conflict, and do not edit an applied migration; create a new forward migration instead.
+Never edit an applied SQL migration. Never run Laravel `artisan migrate`, `migrate:fresh`, `db:wipe`, or remove the Compose volume.
 
-Run the rollback-only PostgreSQL integration tests with:
+## Business-rule test
+
+The rollback-only PostgreSQL integration test can run against the development database because it wraps fixtures in a transaction:
 
 ```powershell
 Get-Content database\tests\003_business_rules_simplification.sql -Raw |
   docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
 ```
 
+Run Laravel feature tests only on the separate `honey_shop_test` database as described in [../docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
+
 ## Current database rules
 
-- Inventory units are PostgreSQL enums: base units `KG` and `CAN`; entered units `KG`, `GALLON`, and `CAN`. Honey gallons use a fixed factor of 7. Purchase and sales lines snapshot entered quantity, unit, factor, base quantity, and price. Product/category unit compatibility is guarded by database triggers and must also be validated in application services.
-- Purchase and sales lines are inserted while their business transaction is a draft. Approved transactions cannot be reverted to draft or deleted.
-- Each inventory movement has a trigger-validated `source_id`; the `(movement_type, source_id)` unique index prevents reposting the same source operation. Inventory balance changes are atomic and negative stock is rejected.
-- Only `YER` is active. Existing `SAR` and `USD` reference rows are preserved but inactive. Business tables reject non-YER amounts.
-- Approved sales and purchase lines are immutable except for their return-quantity counters. Return insertion updates those counters with conditional row updates, preventing concurrent returns from exceeding the original line quantity. Returns post inventory and customer/supplier ledger entries atomically.
-- A full external-order cancellation requires confirmation that the complete shipment returned, rejects orders with partial returns, and posts the full stock and customer-balance reversal once. Updating order status alone does not restore stock.
-- Approved damaged-goods operations post an outgoing inventory movement. Negative stock is rejected.
-- `expenses.paid_amount` is advanced by linked approved payment vouchers. The generated `remaining_amount` is `amount - paid_amount`; voucher posting and the financial-account ledger update are atomic.
-- The delivery expense link is unique per sale. Shop-paid delivery expenses are allowed; customer-paid delivery expenses are rejected. Shared delivery requires the application to record the customer charge on the invoice and the shop portion as an expense.
-- One default YER Main Cashbox is seeded. A partial unique index allows only one default cash account and one YER custody account per representative. Representative custody is not shop cash.
-- Approved inventory, account, customer, and supplier ledgers are append-only. Use reversal or return transactions rather than edits/deletions.
+- Units are enums/check-constrained: base `KG`/`CAN`, input `KG`/`GALLON`/`CAN`; one honey gallon is exactly 7 KG.
+- Only YER is active and valid for first-release business transactions. Inactive historical currency reference rows are preserved.
+- Inventory movements must match their source detail and are unique per movement type/source; triggers update balances atomically and reject negative stock.
+- Approved sales and purchase lines are immutable except for transaction-safe cumulative-return counters.
+- Sales/purchase return details reference original lines. Full external-order cancellation requires complete physical return and cannot follow partial returns.
+- Expenses use a generated outstanding balance; approved payment vouchers update expense and account ledger atomically.
+- Representative custody accounts are distinct from the main cashbox.
 
-## Application work still required
+## Catalog schema
 
-This repository currently contains database files only; no application framework or service layer exists. Implement transaction services for sales, purchases, return/cancellation flows, representative custody account lookup/creation, and delivery-expense creation when the application stack is established. Those services must coordinate document, ledger, and inventory writes in a single transaction and enforce server-side authorization. No application screens are included here.
+Three categories—Honey, Ghee, Nuts—are seeded in `product_categories`. `products` stores UUID, category, base unit, SKU/name, active flag, minimum stock, `selling_price`, and `max_discount_rate`. Migration `003` removed `product_prices`; no such table exists in the live schema.
 
-The first administrator must be provisioned securely by the application; there is no seeded account or default password. Do not use the Docker bootstrap database user in production.
+`inventory_balances` is a trigger-maintained read model. Product management must never write stock. See [../docs/DATABASE.md](../docs/DATABASE.md) for Laravel mappings and application responsibilities.
 
-To stop the development container without deleting its data:
+To stop containers without deleting data:
 
 ```powershell
 docker compose down
 ```
 
-The data volume is retained. Do not use `docker compose down -v` unless you explicitly intend to delete the development database.
+Never use `docker compose down -v` unless permanent deletion of the database volume is explicitly intended.

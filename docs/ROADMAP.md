@@ -2,23 +2,26 @@
 
 ## Completed
 
-- Read and retain the original requirements baseline.
-- Prepare Docker Compose PostgreSQL 17 development environment.
-- Apply and track migrations `001`–`009`.
-- Add YER-only schema, unit rules, source-linked inventory ledger, return limits, full-order cancellation, damaged-goods operation, expense/voucher payment posting, custody uniqueness, and default cashbox.
-- Add rollback-only integration tests and shared development documentation.
+- PostgreSQL 17 Compose environment and SQL migrations `001`–`009`.
+- Rollback-only PostgreSQL business-rule integration test.
+- Shared project and agent documentation.
+- Laravel 13/PHP 8.3 runtime, PostgreSQL connection, health endpoints, file-based sessions/cache, and Vite build.
+- Login/logout using existing `app_users`; existing role/permission integration and secure first-admin command.
+- Arabic RTL Blade layout with local Bootstrap RTL assets.
+- Category listing/search and category activation management.
+- Product listing/search/filter, create/edit/details, YER prices and discount percentage, and read-only stock display.
+- Laravel tests isolated on PostgreSQL `honey_shop_test`.
 
-## Current stage
+## Current scope boundary
 
-**Foundation handoff / application stack decision.** The workspace is still database and documentation only. No application screens or web services have been started. See [open decisions](DECISIONS.md) before scaffolding.
+The implemented milestone is the application foundation and catalog only. No dashboard statistics or links to unfinished business screens are present.
 
-## Suggested next phases after stack approval
+## Recommended next phases
 
-1. Create the minimal application host, environment/secrets configuration, PostgreSQL connection, health endpoint, validation/error/logging defaults, and automated test setup.
-2. Add secure authentication and initial administrator provisioning.
-3. Implement product/catalog and inventory services; test the database movement source/idempotency workflow.
-4. Implement supplier/purchase and customer/sales services with atomic approval and posting.
-5. Implement returns/cancellations, expenses/vouchers, representative custody, and delivery-expense workflows.
-6. Add responsive Arabic RTL UI, reports, audit/access review, backup/restore, and production readiness.
+1. Opening inventory and purchase workflows: document lifecycle, line-unit conversion, transactional approval, source-idempotent movements, and supplier ledger posting.
+2. Sales workflows with price/discount validation, YER totals, inventory posting, and delivery charge handling.
+3. Exact-line sales/purchase returns and full external-order cancellation.
+4. Expenses, vouchers, delivery expenses, and representative custody workflows.
+5. Reports, broader authorization management, deployment hardening, and backup procedures.
 
-Complete and test each phase before broadening scope. Do not implement the roadmap as part of the current foundation task.
+Before implementing a later phase, resolve its relevant open items in [DECISIONS.md](DECISIONS.md) and extend tests on an isolated database.

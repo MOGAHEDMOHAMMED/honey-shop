@@ -40,7 +40,10 @@ class ProductCatalogService
                     ->lockForUpdate()
                     ->firstOrFail();
 
-                if (! $category->is_active && $product->category_id !== $category->getKey()) {
+                if (! $category->is_active
+                    && (! $product->exists
+                        || $product->category_id !== $category->getKey()
+                        || (bool) $data['is_active'])) {
                     throw ValidationException::withMessages([
                         'category_id' => __('catalog.errors.category_inactive'),
                     ]);

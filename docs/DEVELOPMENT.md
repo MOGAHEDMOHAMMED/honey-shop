@@ -1,59 +1,106 @@
 # Development
 
-## Current prerequisites
+## Prerequisites and versions
 
-- Docker Desktop with Docker Compose.
-- PostgreSQL 17 image via the Compose service.
-- PowerShell on Windows for the commands below.
+- Docker Desktop and Docker Compose.
+- PHP 8.3.36 and Composer 2.8.10 are provided by the project `app` image.
+- Node.js 24.12.0 and npm 11.6.2 are used on the host for Vite.
+- PostgreSQL 17.11 runs in the Compose `postgres` service.
 
-No application runtime, dependency manager, or application run/test command is established yet. .NET SDK 10 is installed on the current workstation but is only a recommendation, not an approved project dependency.
+The host PHP CLI is 8.0.30 and is not compatible with Laravel 13. Run PHP/Composer commands through Docker Compose.
 
-## Start and inspect the database
+## Environment setup
 
-From the project root:
+Preserve an existing `.env`. For a new clone only, copy `.env.example` to `.env`, then set a unique local `POSTGRES_PASSWORD`. The file is ignored by Git. Compose maps PostgreSQL to `127.0.0.1:5433` by default; the `app` container connects to host `postgres:5432`.
+
+Build dependencies and assets:
 
 ```powershell
-docker compose up -d
+docker compose up -d postgres
+docker compose build app
+docker compose run --rm --no-deps app composer install
+npm ci
+```
+
+Set `APP_KEY` once for a new environment, only if it is empty; do not rotate an existing key unnecessarily:
+
+```powershell
+docker compose run --rm --no-deps app php artisan key:generate
+```
+
+The application uses local file sessions/cache, encrypted session contents, synchronous queues, and no Redis.
+
+## Database and application startup
+
+The database schema is managed only by the ordered SQL migrations in `database/migrations`. Never run `php artisan migrate`, `migrate:fresh`, or `db:wipe`.
+
+The development database already has migrations `001`–`009` applied. Start the app and seed the idempotent catalog permissions:
+
+```powershell
+docker compose run --rm app php artisan db:seed --class="Database\Seeders\CatalogPermissionsSeeder" --force
+docker compose up -d app
 docker compose ps
-docker compose exec -T postgres psql -U honey_shop -d honey_shop -c "SELECT current_setting('server_version');"
 ```
 
-The checked development environment maps the service to `localhost:5433`; Compose reads this from the ignored local `.env`. The template defaults to `5432`. Do not print or commit `.env` credentials.
+If applying a new schema migration, first query `schema_migrations`, inspect affected data and constraints, and apply only a new pending SQL file in sequence. Do not edit or rerun an applied migration. See [../database/README.md](../database/README.md).
 
-## Migration history and applying changes
+Open `http://localhost:8000`. Health checks:
 
-The live database was inspected and reports these applied versions:
+- `http://localhost:8000/health/live`
+- `http://localhost:8000/health/ready`
 
-```text
-001_initial_schema
-002_ledger_and_currency_rules
-003_business_rules_simplification
-004_inventory_balance_posting_fix
-005_transaction_safe_return_limits
-006_return_counter_trigger_fix
-007_explicit_unit_checks
-008_inventory_movement_idempotency
-009_approval_and_return_guards
-```
-
-Always query `schema_migrations` before applying a migration. Apply only versions not recorded there and in sequence. Example for one verified pending migration:
+Create the initial admin interactively after seeding permissions:
 
 ```powershell
-Get-Content database\migrations\009_approval_and_return_guards.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
+docker compose exec app php artisan app:admin-create
 ```
 
-Do not rerun an already applied migration, edit an applied file, delete/recreate the database, or remove the Compose volume. New schema changes require a new sequential migration and a review of existing rows first.
+The command requires a unique username, display name, a confirmed password of 12–72 characters, hashes it, assigns the existing `Administrator` role, and refuses duplicate initialization. It does not create default credentials.
 
-## Database tests
+## Tests
+
+Laravel tests must use the separate `honey_shop_test` database. It already exists locally and was initialized with SQL migrations `001`–`009`. Test setup forcibly selects that database, opens a transaction, and rolls it back after each test. Do not use Laravel `RefreshDatabase` or run destructive tests against `honey_shop`.
+
+For a new local database environment, inspect first and create the test database only if it does not exist:
 
 ```powershell
+$exists = docker compose exec -T postgres psql -U honey_shop -d honey_shop -tAc "SELECT 1 FROM pg_database WHERE datname = 'honey_shop_test'"
+if ($LASTEXITCODE -ne 0) { throw "Could not inspect PostgreSQL databases" }
+if (-not $exists) {
+    docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1 -c "CREATE DATABASE honey_shop_test OWNER honey_shop"
+    if ($LASTEXITCODE -ne 0) { throw "Could not create honey_shop_test" }
+}
+```
+
+If it already exists, inspect its migration history and records; do not drop or recreate it. For a newly created empty test database, apply the existing SQL migration files once and in filename order:
+
+```powershell
+Get-ChildItem database\migrations\*.sql | Sort-Object Name | ForEach-Object {
+    Get-Content $_.FullName -Raw |
+      docker compose exec -T postgres psql -U honey_shop -d honey_shop_test -v ON_ERROR_STOP=1
+    if ($LASTEXITCODE -ne 0) { throw "Migration failed: $($_.Name)" }
+}
+```
+
+```powershell
+docker compose exec -T app php artisan test
+npm run build
 Get-Content database\tests\003_business_rules_simplification.sql -Raw |
   docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
 ```
 
-This script verifies business-rule behavior in the live PostgreSQL server and rolls back fixtures. A zero exit code and `ROLLBACK` indicate successful completion. There is no application test suite yet.
+The SQL integration test uses `BEGIN`/`ROLLBACK`. Check exit status and output; do not infer success from command startup.
 
-## Secrets and local state
+## Useful commands
 
-`.env` is ignored by Git and contains local database credentials/port. Use environment-based secret configuration for any future app; never put credentials in checked-in config, code, tests, logs, or documentation.
+```powershell
+docker compose exec -T app php artisan about
+docker compose exec -T app php artisan route:list
+docker compose run --rm --no-deps app composer show laravel/framework
+npm ci
+npm run dev
+npm run build
+docker compose ps
+```
+
+Do not use `docker compose down -v`; it deletes the PostgreSQL data volume.

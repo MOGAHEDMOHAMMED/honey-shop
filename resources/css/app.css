@@ -2,8 +2,13 @@
 
 :root {
     --honey-ink: #263238;
-    --honey-gold: #b7791f;
+    --honey-gold: #9c620d;
     --honey-bg: #f5f6f8;
+    --bs-primary: #9c620d;
+    --bs-primary-rgb: 156, 98, 13;
+    --bs-link-color: #82530c;
+    --bs-link-hover-color: #68430a;
+    --bs-focus-ring-color: rgb(156 98 13 / 25%);
 }
 
 body {
@@ -71,6 +76,15 @@ body {
 
 .form-label {
     font-weight: 600;
+}
+
+.btn-primary {
+    --bs-btn-bg: var(--honey-gold);
+    --bs-btn-border-color: var(--honey-gold);
+    --bs-btn-hover-bg: #80500b;
+    --bs-btn-hover-border-color: #80500b;
+    --bs-btn-active-bg: #68430a;
+    --bs-btn-active-border-color: #68430a;
 }
 
 .required-mark {
