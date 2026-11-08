@@ -14,11 +14,18 @@
         <input id="product-name" name="name" value="{{ old('name', $product->name) }}"
                class="form-control @error('name') is-invalid @enderror" maxlength="255" required>
     </div>
-    <div class="col-12 col-md-6">
-        <label for="product-sku" class="form-label">{{ __('catalog.fields.sku') }}</label>
-        <input id="product-sku" name="sku" value="{{ old('sku', $product->sku) }}"
-               class="form-control @error('sku') is-invalid @enderror" maxlength="100">
-    </div>
+    @if ($product->exists)
+        <div class="col-12 col-md-6">
+            <label for="product-sku" class="form-label">{{ __('catalog.fields.sku') }}</label>
+            <input id="product-sku" value="{{ $product->sku }}"
+                   class="form-control" readonly tabindex="-1">
+        </div>
+    @else
+        <div class="col-12 col-md-6">
+            <label class="form-label">{{ __('catalog.fields.sku') }}</label>
+            <div class="form-control bg-light text-secondary">{{ __('catalog.messages.product_code_auto') }}</div>
+        </div>
+    @endif
     <div class="col-12 col-md-6">
         <label for="category-id" class="form-label">
             {{ __('catalog.fields.category') }} <span class="required-mark">*</span>

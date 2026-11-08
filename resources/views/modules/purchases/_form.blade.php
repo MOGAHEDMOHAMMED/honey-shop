@@ -22,12 +22,13 @@
         </div>
         <div class="col-12 col-md-6">
             <label for="supplier-invoice-number" class="form-label">
-                {{ __('catalog.fields.supplier_invoice_number') }} <span class="required-mark">*</span>
+                {{ __('catalog.fields.supplier_invoice_number') }}
             </label>
             <input id="supplier-invoice-number" name="supplier_invoice_number"
                    value="{{ old('supplier_invoice_number', $purchase?->supplier_invoice_number) }}"
                    class="form-control @error('supplier_invoice_number') is-invalid @enderror"
-                   maxlength="100" required>
+                   maxlength="100">
+            <div class="form-text">{{ __('catalog.messages.supplier_reference_optional') }}</div>
         </div>
         <div class="col-12 col-md-6">
             <label for="document-date" class="form-label">
@@ -55,6 +56,12 @@
                 'canRemove' => count($lines) > 1,
             ])
         @endforeach
+    </div>
+    <div class="text-start mt-3">
+        <span class="fw-semibold">{{ __('catalog.fields.invoice_total') }}:</span>
+        <output data-document-total data-currency="{{ __('catalog.currency') }}" class="fw-bold" dir="ltr">
+            0 {{ __('catalog.currency') }}
+        </output>
     </div>
     <template data-line-template>
         @include('modules.shared._transaction-line', [

@@ -2,9 +2,9 @@
 
 ## Verified state
 
-The development database is `honey_shop` on PostgreSQL 17.11 in Docker Compose. `schema_migrations` records versions `001` through `012`; the live schema has 53 public tables. It contains the three seeded categories and existing roles, 12 permission codes with 27 role-permission links, and no application users, products, suppliers, purchases, opening-inventory documents, or other affected business records. Permission seeding did not alter business records.
+The development database is `honey_shop` on PostgreSQL 17.11 in Docker Compose. `schema_migrations` records versions `001` through `014`. The existing development data includes two products with numeric codes `741` and `742` and two purchase invoices with UUID-based internal references; both migrations preserve these values. No sales or customer records existed before this milestone.
 
-Both `honey_shop` and the isolated `honey_shop_test` database now record SQL migrations `001` through `012`. Migrations `010`–`012` were applied forward-only after checking existing records; neither database was reset or recreated. The development database had no business records in the affected tables when those migrations were applied. The idempotent permission seeder now includes the catalog, price-history, supplier, opening-inventory, and purchase permission codes. Laravel feature tests use only `honey_shop_test`.
+Both `honey_shop` and the isolated `honey_shop_test` database record SQL migrations `001` through `014`. Migrations were applied forward-only after inspecting affected records; neither database was reset or recreated. The idempotent permission seeder includes catalog, price-history, supplier, opening-inventory, purchase, customer, and sales permissions. Laravel feature tests use only `honey_shop_test`.
 
 ## Laravel mappings
 
@@ -14,13 +14,15 @@ Both `honey_shop` and the isolated `honey_shop_test` database now record SQL mig
 | `Role` | `roles` | UUID `id`; no timestamps |
 | `Permission` | `permissions` | string primary key `code`; no timestamps |
 | `ProductCategory` | `product_categories` | UUID `id`; no timestamps; `is_active` |
-| `Product` | `products` | UUID `id`; timestamps; PostgreSQL `base_inventory_unit`; YER price and discount ratio |
+| `Product` | `products` | UUID `id`; database-generated numeric `sku` continuing the existing sequence; timestamps; YER price and discount ratio |
 | `ProductPriceHistory` | `product_price_history` | UUID `id`; immutable prior/new price and discount snapshots; nullable actor only for the baseline snapshot |
 | `Supplier` / `SupplierType` | `suppliers` / `supplier_types` | Existing supplier model and type reference; beekeepers use the existing supplier type |
 | `BusinessTransaction` | `business_transactions` | UUID `id`; shared draft/approved lifecycle and actor timestamps |
 | `OpeningInventory` / `OpeningInventoryLine` | `opening_inventory` / `opening_inventory_lines` | Input quantity/unit/conversion snapshot plus base quantity; only one document may be approved |
 | `PurchaseInvoice` / `PurchaseLine` | `purchase_invoices` / `purchase_lines` | Supplier invoice number is separate from internal purchase reference; generated monetary/base-quantity fields remain database-owned |
 | `SupplierAccountEntry` | `supplier_account_entries` | Append-only YER supplier ledger entry; purchase source key prevents duplicate postings |
+| `Customer` / `CustomerAccountEntry` | `customers` / `customer_account_entries` | Customer profile and append-only YER ledger; source sale key prevents duplicate receivables |
+| `SalesInvoice` / `SalesLine` | `sales_invoices` / `sales_lines` | Drafts use internal identifiers; permanent series numbers are allocated during approval; line price/discount and unit conversions are snapshotted |
 | `InventoryBalance` | `inventory_balances` | `product_id` is the UUID primary key; no Eloquent writes |
 
 Relationships use the existing `user_roles`, `role_permissions`, `products.category_id`, and `inventory_balances.product_id` foreign keys.
@@ -34,6 +36,7 @@ Relationships use the existing `user_roles`, `role_permissions`, `products.categ
 - The app displays YER and the existing `inventory_balances.quantity`; product create/edit never writes stock.
 - A category with active products cannot be deactivated. A product category cannot be changed after inventory or transaction history exists. Products have no hard-delete route.
 - Product creation and price/discount changes append immutable, actor-attributed history in the same transaction. Non-price edits do not create history entries; the application exposes history only to users with `catalog.products.price-history.view`.
+- Product codes are assigned by a PostgreSQL sequence initialized from the highest existing numeric code. Existing codes remain unchanged.
 
 ## Suppliers, opening inventory, and purchases
 
@@ -45,10 +48,19 @@ Relationships use the existing `user_roles`, `role_permissions`, `products.categ
 - Purchase line totals use PostgreSQL `ROUND(entered_quantity * purchase_unit_price, 2)` and invoice totals sum already-rounded lines. Stored YER values use two decimal places. PHP does not use floats for money.
 - Opening inventory stores quantities only. No acquisition-cost or stock-valuation policy has been approved or added.
 
+## Customers and sales
+
+- Customer listing/search, create/edit/details, approved-account balances, sales history, and ledger history use the existing `customers` and `customer_account_entries` tables.
+- Draft direct sales and external orders do not post stock or receivables. External drafts remain pending shipment; approval marks them shipped.
+- Sales approval locks the draft, customer, product lines, products, and stock balances; it verifies active records, category units, discount limits, rounded totals, and available stock.
+- Approval assigns one permanent string invoice number using the Honey `74`, Ghee `84`, or Nuts `94` counter, then atomically approves the transaction, records source-linked outbound movements, and posts one YER receivable. Mixed-category invoices require a chosen series.
+- Customer delivery charges are included in receivables. Shop-borne charges must be zero; a shared delivery amount records the customer's portion. Recording shop delivery expenses remains out of scope.
+- Database unique counters, source keys, and approved transaction status prevent invoice-number reuse and duplicate postings. Sales and purchase returns and cancellation/refunds are not exposed by the UI.
+
 ## Integrity and unchanged business tables
 
 The application does not reimplement or disable existing database checks/triggers. Important database guarantees include YER-only financial records, base/input-unit constraints, exact-line cumulative return counters, nonnegative inventory, source-linked idempotent movements, final transaction protections, append-only ledgers, and voucher-linked expense payments. These workflows are not exposed by the current Laravel UI.
 
-Migrations `010`–`012` are forward-only SQL files. They add immutable product-price history, procurement support and guards, opening-line unit snapshots, and two-place YER precision across existing financial fields. Migration `012` also makes the future sales-line generated net amount round gross before applying the stored discount. Applied migrations `001`–`009` remain unchanged. No Laravel migration files or competing `migrations` table were added.
+Migrations `010`–`014` are forward-only SQL files. They add immutable product-price history, procurement support and guards, two-place YER precision, purchase numbering, sales-series counters and posting guards, and product-code sequence continuation. Applied migrations `001`–`009` remain unchanged. No Laravel migration files or competing `migrations` table were added.
 
 Use [../database/README.md](../database/README.md) and [DEVELOPMENT.md](DEVELOPMENT.md) for SQL migration/test commands.

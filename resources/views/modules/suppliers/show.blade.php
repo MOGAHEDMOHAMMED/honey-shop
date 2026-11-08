@@ -59,7 +59,7 @@
             <table class="table table-hover align-middle mb-0">
                 <thead>
                 <tr>
-                    <th>{{ __('catalog.fields.purchase_reference') }}</th>
+                    <th>{{ __('catalog.fields.purchase_invoice_number') }}</th>
                     <th>{{ __('catalog.fields.supplier_invoice_number') }}</th>
                     <th>{{ __('catalog.fields.document_date') }}</th>
                     <th>{{ __('catalog.fields.invoice_total') }}</th>

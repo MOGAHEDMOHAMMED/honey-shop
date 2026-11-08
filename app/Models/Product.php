@@ -20,7 +20,6 @@ class Product extends Model
     public $incrementing = false;
 
     protected $fillable = [
-        'sku',
         'name',
         'category_id',
         'base_unit',

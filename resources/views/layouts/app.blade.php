@@ -46,6 +46,19 @@
                     @endcan
                 </nav>
             @endif
+            @if (auth()->user()->can('customers.view') || auth()->user()->can('sales.view'))
+                <div class="small text-white-50 mb-2">{{ __('catalog.navigation.sales') }}</div>
+                <nav class="sidebar-nav mb-4">
+                    @can('customers.view')
+                        <a class="sidebar-link {{ request()->routeIs('customers.*') ? 'active' : '' }}"
+                           href="{{ route('customers.index') }}">{{ __('catalog.navigation.customers') }}</a>
+                    @endcan
+                    @can('sales.view')
+                        <a class="sidebar-link {{ request()->routeIs('sales.*') ? 'active' : '' }}"
+                           href="{{ route('sales.index') }}">{{ __('catalog.navigation.sales_invoices') }}</a>
+                    @endcan
+                </nav>
+            @endif
             <div class="mt-lg-auto border-top border-secondary pt-3">
                 <div class="small mb-2">{{ auth()->user()->display_name }}</div>
                 <form method="post" action="{{ route('logout') }}">

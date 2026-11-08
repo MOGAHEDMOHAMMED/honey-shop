@@ -12,7 +12,7 @@
     <div class="card-body p-4">
         <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
             <div>
-                <h2 class="h4 mb-2">{{ $purchase->invoice_number }}</h2>
+                <h2 class="h4 mb-2">{{ __('catalog.fields.purchase_invoice_number') }}: {{ $purchase->invoice_number }}</h2>
                 <span class="badge {{ $purchase->businessTransaction->status === 'approved' ? 'text-bg-success' : 'text-bg-warning' }}">
                     {{ __('catalog.statuses.'.$purchase->businessTransaction->status) }}
                 </span>
@@ -42,7 +42,7 @@
             </div>
             <div class="col-12 col-md-6">
                 <div class="text-secondary small">{{ __('catalog.fields.supplier_invoice_number') }}</div>
-                <div class="fw-semibold">{{ $purchase->supplier_invoice_number }}</div>
+                <div class="fw-semibold">{{ $purchase->supplier_invoice_number ?: '—' }}</div>
             </div>
             <div class="col-12 col-md-6">
                 <div class="text-secondary small">{{ __('catalog.fields.document_date') }}</div>

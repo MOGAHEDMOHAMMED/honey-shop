@@ -3,6 +3,8 @@
     $enteredQuantity = old("lines.{$index}.entered_quantity", $line['entered_quantity'] ?? '');
     $selectedUnit = old("lines.{$index}.input_unit", $line['input_unit'] ?? '');
     $purchaseUnitPrice = old("lines.{$index}.purchase_unit_price", $line['purchase_unit_price'] ?? '');
+    $saleUnitPrice = old("lines.{$index}.unit_price", $line['unit_price'] ?? '');
+    $discountPercentage = old("lines.{$index}.discount_percentage", $line['discount_percentage'] ?? '0');
 @endphp
 <div class="transaction-line border rounded p-3 mb-3" data-transaction-line>
     <div class="row g-3 align-items-end">
@@ -17,6 +19,8 @@
                     <option value="{{ $product->id }}"
                             data-category="{{ mb_strtolower($product->category->name) }}"
                             data-base-unit="{{ $product->base_unit->value }}"
+                            data-selling-price="{{ $product->selling_price }}"
+                            data-max-discount="{{ bcmul((string) $product->max_discount_rate, '100', 4) }}"
                             @selected((string) $selectedProduct === (string) $product->id)>
                         {{ $product->name }} — {{ __('catalog.categories.'.$product->category->name) }}
                     </option>
@@ -32,7 +36,7 @@
             </label>
             <input id="line-quantity-{{ $index }}" name="lines[{{ $index }}][entered_quantity]"
                    type="number" min="0.001" step="0.001" value="{{ $enteredQuantity }}"
-                   class="form-control" required>
+                   class="form-control" data-line-quantity required>
             @error("lines.{$index}.entered_quantity")
                 <div class="invalid-feedback d-block">{{ $message }}</div>
             @enderror
@@ -62,12 +66,42 @@
                 <div class="input-group">
                     <input id="line-cost-{{ $index }}" name="lines[{{ $index }}][purchase_unit_price]"
                            type="number" min="0" step="0.01" value="{{ $purchaseUnitPrice }}"
-                           class="form-control" required>
+                           class="form-control" data-line-cost required>
                     <span class="input-group-text">{{ __('catalog.currency') }}</span>
                 </div>
                 @error("lines.{$index}.purchase_unit_price")
                     <div class="invalid-feedback d-block">{{ $message }}</div>
                 @enderror
+            </div>
+        @endif
+        @if ($showSaleFields ?? false)
+            <div class="col-6 col-md-2">
+                <label for="line-price-{{ $index }}" class="form-label">
+                    {{ __('catalog.fields.unit_price') }} <span class="required-mark">*</span>
+                </label>
+                <div class="input-group">
+                    <input id="line-price-{{ $index }}" name="lines[{{ $index }}][unit_price]"
+                           type="number" min="0" step="0.01" value="{{ $saleUnitPrice }}"
+                           class="form-control" data-line-price required>
+                    <span class="input-group-text">{{ __('catalog.currency') }}</span>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <label for="line-discount-{{ $index }}" class="form-label">
+                    {{ __('catalog.fields.discount_percentage') }}
+                </label>
+                <div class="input-group">
+                    <input id="line-discount-{{ $index }}" name="lines[{{ $index }}][discount_percentage]"
+                           type="number" min="0" max="100" step="0.0001"
+                           value="{{ $discountPercentage }}" class="form-control" data-line-discount>
+                    <span class="input-group-text">%</span>
+                </div>
+            </div>
+        @endif
+        @if ($showCost || ($showSaleFields ?? false))
+            <div class="col-6 col-md-2">
+                <label class="form-label">{{ __('catalog.fields.line_total') }}</label>
+                <output class="form-control bg-light" data-line-total dir="ltr">0</output>
             </div>
         @endif
         <div class="col-6 col-md-2">

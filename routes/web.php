@@ -3,9 +3,11 @@
 use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Catalog\CategoryController;
 use App\Http\Controllers\Catalog\ProductController;
+use App\Http\Controllers\Customers\CustomerController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\OpeningInventory\OpeningInventoryController;
 use App\Http\Controllers\Purchases\PurchaseController;
+use App\Http\Controllers\Sales\SalesController;
 use App\Http\Controllers\Suppliers\SupplierController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,8 @@ Route::middleware('auth')->group(function (): void {
             ['suppliers.view', 'suppliers.index'],
             ['opening-inventory.view', 'opening-inventory.index'],
             ['purchases.view', 'purchases.index'],
+            ['customers.view', 'customers.index'],
+            ['sales.view', 'sales.index'],
         ] as [$permission, $route]) {
             if (auth()->user()->can($permission)) {
                 return redirect()->route($route);
@@ -74,6 +78,34 @@ Route::middleware('auth')->group(function (): void {
         ->middleware('can:suppliers.manage')->name('suppliers.edit');
     Route::put('/suppliers/{supplier}', [SupplierController::class, 'update'])
         ->middleware('can:suppliers.manage')->name('suppliers.update');
+
+    Route::get('/customers', [CustomerController::class, 'index'])
+        ->middleware('can:customers.view')->name('customers.index');
+    Route::get('/customers/create', [CustomerController::class, 'create'])
+        ->middleware('can:customers.manage')->name('customers.create');
+    Route::post('/customers', [CustomerController::class, 'store'])
+        ->middleware('can:customers.manage')->name('customers.store');
+    Route::get('/customers/{customer}', [CustomerController::class, 'show'])
+        ->middleware('can:customers.view')->name('customers.show');
+    Route::get('/customers/{customer}/edit', [CustomerController::class, 'edit'])
+        ->middleware('can:customers.manage')->name('customers.edit');
+    Route::put('/customers/{customer}', [CustomerController::class, 'update'])
+        ->middleware('can:customers.manage')->name('customers.update');
+
+    Route::get('/sales', [SalesController::class, 'index'])
+        ->middleware('can:sales.view')->name('sales.index');
+    Route::get('/sales/create', [SalesController::class, 'create'])
+        ->middleware('can:sales.manage')->name('sales.create');
+    Route::post('/sales', [SalesController::class, 'store'])
+        ->middleware('can:sales.manage')->name('sales.store');
+    Route::get('/sales/{sale}', [SalesController::class, 'show'])
+        ->middleware('can:sales.view')->name('sales.show');
+    Route::get('/sales/{sale}/edit', [SalesController::class, 'edit'])
+        ->middleware('can:sales.manage')->name('sales.edit');
+    Route::put('/sales/{sale}', [SalesController::class, 'update'])
+        ->middleware('can:sales.manage')->name('sales.update');
+    Route::post('/sales/{sale}/approve', [SalesController::class, 'approve'])
+        ->middleware('can:sales.approve')->name('sales.approve');
 
     Route::get('/opening-inventory', [OpeningInventoryController::class, 'index'])
         ->middleware('can:opening-inventory.view')->name('opening-inventory.index');

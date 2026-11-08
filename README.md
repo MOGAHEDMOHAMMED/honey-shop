@@ -9,10 +9,15 @@ Laravel web application for managing a honey, ghee, and nuts shop. The applicati
 - Arabic RTL application layout.
 - Product category browsing/search and activation management for Honey, Ghee, and Nuts.
 - Product search, category filtering, create/edit/details, YER selling prices, maximum discount percentages, append-only price history, and read-only stock display.
+- Automatically generated product codes that continue the existing numeric sequence.
 - Supplier search, create/edit/details, supplier types (including beekeepers), and activation management.
 - Draft and approval workflows for opening inventory and purchase invoices, including unit conversion, inventory posting, and supplier payable ledger entries.
+- Automatically generated shop purchase invoice numbers, separate from optional supplier invoice references.
 - Exact two-decimal YER purchase calculations using PostgreSQL generated values and `ROUND_HALF_UP`.
-- Sales, returns, expenses, payment vouchers, and other financial modules are not implemented.
+- Customer search, create/edit/details, sales history, and ledger balances.
+- Direct sales and external orders with dynamic lines, live totals, discount/unit validation, stock checks, approval-time invoice numbering, inventory posting, and customer receivable posting.
+- External delivery-charge allocation and shipment registration at approval.
+- Sales/purchase returns, full cancellation/refunds, expenses, payment vouchers, and other collection workflows are not implemented.
 
 ## Start here
 

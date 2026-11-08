@@ -33,8 +33,7 @@ class PurchaseDraftService
 
             $invoice = PurchaseInvoice::query()->create([
                 'transaction_id' => $transactionId,
-                'invoice_number' => 'PUR-'.strtoupper($transactionId),
-                'supplier_invoice_number' => trim($data['supplier_invoice_number']),
+                'supplier_invoice_number' => $this->nullableText($data['supplier_invoice_number'] ?? null),
                 'supplier_id' => $supplier->getKey(),
                 'currency_code' => 'YER',
                 'invoice_total' => '0.00',
@@ -80,7 +79,7 @@ class PurchaseDraftService
             $transaction->notes = $this->nullableText($data['notes'] ?? null);
             $transaction->save();
             $invoice->supplier_id = $supplier->getKey();
-            $invoice->supplier_invoice_number = trim($data['supplier_invoice_number']);
+            $invoice->supplier_invoice_number = $this->nullableText($data['supplier_invoice_number'] ?? null);
             $invoice->save();
 
             $invoice->lines()->delete();

@@ -25,7 +25,7 @@
 - Preserve the current selling price and maximum discount rate on `products`; append price/discount change events in a separate immutable history record.
 - Product creation appends an initial event. A price or discount change appends one event containing prior/new values and the authenticated actor, in the same transaction as the product write. Other edits create no price event.
 - Price-history rows are never editable or deletable through the app; the database rejects update/delete.
-- Price history does not replace price/discount snapshots on future approved sales lines.
+- Price history does not replace the unit-price and discount snapshots stored on approved sales lines.
 
 ## Purchase and opening inventory
 
@@ -38,13 +38,19 @@
 - A purchase with a zero total may be saved as a draft, but it cannot be approved. The existing supplier-ledger constraint requires a positive debit or credit, and approval must not create a zero-value payable.
 - The purchase unit price is the complete landed acquisition cost. Purchase line totals are generated and rounded per line in PostgreSQL before being summed; PHP float/double arithmetic is prohibited.
 
-## Sales invoice numbering (approved future implementation)
+## Customer and sales workflows
+
+- Sales drafts do not affect stock or customer balances. Approval atomically validates current product/unit/discount rules and stock, assigns the permanent invoice number, marks the business transaction approved, posts source-linked inventory movements, and posts one customer receivable.
+- Direct sales have no delivery charge. External orders remain pending shipment as drafts; approval is the point at which goods leave the shop and changes the order to shipped.
+- `delivery_charge` is the amount charged to the customer and is added to the customer receivable. It must be zero when the shop bears delivery; for shared delivery, record the customer's share here. Shop delivery expenses remain a separate future workflow.
+- Product prices and allowed discount rates are snapshotted on each sales line. The selected sales series does not constrain the categories in a mixed invoice.
+
+## Sales invoice numbering
 
 - Sales invoices use three independent category series: Honey `74`, Ghee `84`, Nuts `94`, followed by suffixes starting at `1` and incrementing by one (for example `741`, `742`, `743`; `841`, `842`, `843`; `941`, `942`, `943`).
 - Invoice numbers are strings, globally unique, permanent, assigned only during approval, and never reused, including after cancellation. Drafts use internal identifiers.
 - Never allocate with `MAX(invoice_number) + 1`; use a transactional, concurrency-safe database counter and a unique constraint.
 - A single-category invoice selects its category series automatically. Approval of a mixed-category invoice requires an explicit series selection. That selection affects only the prefix, not allowed invoice products, and is persisted on the invoice.
-- This milestone documents the rule; it does not implement sales invoices.
 
 ## Full cancellation of a paid external order (approved future implementation)
 
@@ -57,6 +63,6 @@
 
 ## Current implementation and future boundary
 
-The application implements authentication, catalog and price history, supplier management, opening inventory, and purchase workflows. The rules above are approved even where their corresponding later module is not yet implemented. In particular, sales numbering, sales calculation snapshots, returns/refunds, vouchers, taxes, and financial collection interfaces must not be reported as implemented based on this documentation.
+The application implements authentication, catalog and price history, supplier management, opening inventory, purchases, customer management, and direct/external sales approval. Sales returns, purchase returns, full external-order cancellation/refunds, vouchers, taxes, and financial collection interfaces remain future work.
 
 Remaining operational decisions are limited to matters not fixed above, such as production hosting, secret management, and TLS deployment.

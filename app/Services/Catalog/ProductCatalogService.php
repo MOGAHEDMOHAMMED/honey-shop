@@ -69,7 +69,6 @@ class ProductCatalogService
                 $previousDiscountRate = $product->exists ? $product->max_discount_rate : null;
 
                 $product->fill([
-                    'sku' => $data['sku'] ?: null,
                     'name' => $data['name'],
                     'category_id' => $category->getKey(),
                     'base_unit' => $baseUnit,
@@ -100,7 +99,8 @@ class ProductCatalogService
                 return $product;
             });
         } catch (QueryException $exception) {
-            if ($exception->getCode() === '23505') {
+            if ($exception->getCode() === '23505'
+                && str_contains($exception->getMessage(), 'products_sku_key')) {
                 throw ValidationException::withMessages([
                     'sku' => __('catalog.errors.duplicate_sku'),
                 ]);

@@ -17,12 +17,6 @@ class ProductRequest extends FormRequest
         $product = $this->route('product');
 
         return [
-            'sku' => [
-                'nullable',
-                'string',
-                'max:100',
-                Rule::unique('products', 'sku')->ignore($product?->getKey()),
-            ],
             'name' => ['required', 'string', 'max:255'],
             'category_id' => ['required', 'uuid', Rule::exists('product_categories', 'id')],
             'minimum_stock' => ['nullable', 'numeric', 'min:0', 'decimal:0,3'],

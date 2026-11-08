@@ -98,11 +98,26 @@ class CatalogTest extends TestCase
 
             $product = Product::query()->where('name', 'Product '.$categoryName)->firstOrFail();
             $this->assertSame($unit, $product->base_unit);
+            $this->assertMatchesRegularExpression('/^[0-9]+$/', $product->sku);
             $this->assertSame('125.50', $product->selling_price);
             $this->assertSame('0.150000', $product->max_discount_rate);
         }
 
         $this->assertSame(0, DB::table('inventory_balances')->count());
+    }
+
+    public function test_product_codes_are_generated_instead_of_accepting_user_input(): void
+    {
+        $category = ProductCategory::query()->where('name', 'Honey')->firstOrFail();
+        $data = $this->validProductData($category, 'Automatically Coded Honey', [
+            'sku' => 'USER-DEFINED-CODE',
+        ]);
+
+        $this->post(route('products.store'), $data)->assertRedirect();
+        $product = Product::query()->where('name', 'Automatically Coded Honey')->firstOrFail();
+
+        $this->assertMatchesRegularExpression('/^[0-9]+$/', $product->sku);
+        $this->assertNotSame('USER-DEFINED-CODE', $product->sku);
     }
 
     public function test_product_search_and_category_filter_use_real_database_records(): void

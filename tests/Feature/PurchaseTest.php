@@ -44,7 +44,7 @@ class PurchaseTest extends TestCase
 
         $this->assertSame('draft', $invoice->businessTransaction()->value('status'));
         $this->assertSame('SUP-HONEY-001', $invoice->supplier_invoice_number);
-        $this->assertSame('PUR-'.strtoupper($invoice->transaction_id), $invoice->invoice_number);
+        $this->assertMatchesRegularExpression('/^PUR-[0-9]{6}$/', $invoice->invoice_number);
         $this->assertSame('GALLON', $line->input_unit);
         $this->assertSame('2.000', $line->entered_quantity);
         $this->assertSame('7.000000', $line->conversion_factor);
@@ -119,13 +119,37 @@ class PurchaseTest extends TestCase
         $this->assertSame('0.01', PurchaseLine::query()
             ->where('transaction_id', $invoice->transaction_id)->firstOrFail()->line_total);
         $this->assertSame('0.02', $invoice->invoice_total);
-
         $this->post(route('purchases.approve', $invoice))->assertRedirect();
         $this->assertSame('1.000', DB::table('inventory_balances')
             ->where('product_id', $nuts->getKey())->value('quantity'));
         $this->assertSame('0.02', DB::table('supplier_account_entries')
             ->where('source_purchase_transaction_id', $invoice->transaction_id)
             ->value('credit'));
+    }
+
+    public function test_purchase_number_is_generated_and_browser_total_is_ignored(): void
+    {
+        $supplier = $this->supplier();
+        $product = $this->product('Nuts', 'Automatic Number Nuts');
+        $data = $this->purchaseData($supplier, [[
+            'product_id' => $product->getKey(),
+            'entered_quantity' => '2.000',
+            'input_unit' => 'KG',
+            'purchase_unit_price' => '10.05',
+        ]]);
+        unset($data['supplier_invoice_number']);
+        $data['invoice_total'] = '0.01';
+
+        $this->post(route('purchases.store'), $data)->assertRedirect();
+        $invoice = PurchaseInvoice::query()->where('supplier_id', $supplier->getKey())->sole();
+
+        $this->assertMatchesRegularExpression('/^PUR-[0-9]{6}$/', $invoice->invoice_number);
+        $this->assertNull($invoice->supplier_invoice_number);
+        $this->assertSame('20.10', $invoice->invoice_total);
+        $this->get(route('purchases.show', $invoice))
+            ->assertOk()
+            ->assertSee(__('catalog.fields.purchase_invoice_number'))
+            ->assertSee($invoice->invoice_number);
     }
 
     public function test_draft_purchase_can_be_edited_and_recalculates_its_total(): void

@@ -102,6 +102,7 @@ class SupplierTest extends TestCase
         $this->delete(route('suppliers.show', $supplier))->assertStatus(405);
         $this->get(route('suppliers.show', $supplier))
             ->assertOk()
+            ->assertSee('Wadi Beekeeper')
             ->assertSee('PUR-TEST-REFERENCE')
             ->assertSee('SUP-ORIGINAL-1');
         $this->assertDatabaseHas('suppliers', ['id' => $supplier->getKey()]);

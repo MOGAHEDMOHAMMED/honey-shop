@@ -16,7 +16,7 @@ Do not disclose or commit `.env` values.
 
 ## Schema and migration history
 
-The ordered SQL files in `database/migrations` are the sole schema-management system. Both the live development database and isolated test database record migrations `001` through `012` in `schema_migrations`.
+The ordered SQL files in `database/migrations` are the sole schema-management system. Both the live development database and isolated test database record migrations `001` through `014` in `schema_migrations`.
 
 Before any migration:
 
@@ -29,20 +29,22 @@ Never edit an applied SQL migration. Never run Laravel `artisan migrate`, `migra
 
 ## Business-rule test
 
-The rollback-only PostgreSQL integration test can run against the development database because it wraps fixtures in a transaction:
+The rollback-only PostgreSQL integration test uses only the isolated test database:
 
 ```powershell
 Get-Content database\tests\003_business_rules_simplification.sql -Raw |
-  docker compose exec -T postgres psql -U honey_shop -d honey_shop -v ON_ERROR_STOP=1
+  docker compose exec -T postgres psql -U honey_shop -d honey_shop_test -v ON_ERROR_STOP=1
 ```
 
-Run Laravel feature tests only on the separate `honey_shop_test` database as described in [../docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
+Run all Laravel and SQL integration tests only on the separate `honey_shop_test` database as described in [../docs/DEVELOPMENT.md](../docs/DEVELOPMENT.md).
 
 ## Procurement and price-history schema
 
 - Migration `010` adds append-only `product_price_history`, case-insensitive supplier-name uniqueness within a supplier type, supplier invoice references, source-keyed purchase payables, input-unit snapshots for opening inventory, and final-document/one-time-opening guards.
 - Migration `011` applies two-decimal precision to product/purchase/supplier amounts and rounds purchase generated line values in PostgreSQL.
-- Migration `012` applies two-decimal precision to remaining YER financial columns and aligns the generated future sales-line net amount with the approved gross-rounding-before-discount rule.
+- Migration `012` applies two-decimal precision to remaining YER financial columns and aligns generated sales-line net amounts with the approved gross-rounding-before-discount rule.
+- Migration `013` adds automatic purchase numbering, transactional sales-series counters, sales discount snapshots and customer-posting source keys, and permanent issued-number protections.
+- Migration `014` continues automatic product codes from existing numeric SKUs without changing existing product codes.
 - Do not recreate `product_prices`; live prices and maximum discounts remain on `products`.
 - Opening-inventory documents store quantities and unit conversions only; no opening valuation method is approved.
 
@@ -52,6 +54,8 @@ Run Laravel feature tests only on the separate `honey_shop_test` database as des
 - Only YER is active and valid for first-release business transactions. Inactive historical currency reference rows are preserved.
 - Inventory movements must match their source detail and are unique per movement type/source; triggers update balances atomically and reject negative stock.
 - Draft purchases and opening inventory do not post stock or supplier balances. Purchase approval posts source-linked movements and one supplier payable atomically. Only one opening-inventory document may be approved.
+- Sales drafts do not post stock or customer balances. Sales approval validates stock, allocates a unique category-series invoice number, posts source-linked inventory movements, and adds one customer receivable atomically.
+- Customer delivery charges are included in receivables; a shop-borne delivery charge must be zero, and shared delivery records only the customer's share. Shop delivery expenses remain separate.
 - YER monetary columns use two decimal places. Exchange-rate source/target values remain separate reference data and are not used for business currency conversion.
 - Supplier ledger entries and product price history are append-only. Approved purchase and opening-inventory documents/lines are immutable.
 - Approved sales and purchase lines are immutable except for transaction-safe cumulative-return counters.

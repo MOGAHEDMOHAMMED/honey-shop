@@ -16,7 +16,7 @@ class PurchaseRequest extends FormRequest
     {
         return [
             'supplier_id' => ['required', 'uuid', Rule::exists('suppliers', 'id')],
-            'supplier_invoice_number' => ['required', 'string', 'max:100'],
+            'supplier_invoice_number' => ['nullable', 'string', 'max:100'],
             'document_date' => ['required', 'date_format:Y-m-d'],
             'notes' => ['nullable', 'string', 'max:2000'],
             'lines' => ['required', 'array', 'min:1', 'max:50'],

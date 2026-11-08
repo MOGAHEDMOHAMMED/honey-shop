@@ -32,6 +32,11 @@ class AppServiceProvider extends ServiceProvider
             'purchases.view',
             'purchases.manage',
             'purchases.approve',
+            'customers.view',
+            'customers.manage',
+            'sales.view',
+            'sales.manage',
+            'sales.approve',
         ] as $permission) {
             Gate::define(
                 $permission,

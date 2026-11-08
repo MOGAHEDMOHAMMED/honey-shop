@@ -21,6 +21,11 @@ class CatalogPermissionsSeeder extends Seeder
         'purchases.view' => 'View purchase invoices',
         'purchases.manage' => 'Create and edit draft purchases',
         'purchases.approve' => 'Approve purchase invoices',
+        'customers.view' => 'View customers and balances',
+        'customers.manage' => 'Create and update customers',
+        'sales.view' => 'View sales invoices',
+        'sales.manage' => 'Create and edit draft sales',
+        'sales.approve' => 'Approve sales and post inventory',
     ];
 
     public function run(): void
@@ -43,15 +48,42 @@ class CatalogPermissionsSeeder extends Seeder
             }
 
             $allPermissions = array_keys(self::PERMISSIONS);
-            $readPermissions = [
+            $salesPermissions = [
                 'catalog.categories.view',
                 'catalog.products.view',
                 'catalog.products.price-history.view',
+                'customers.view',
+                'customers.manage',
+                'sales.view',
+                'sales.manage',
+                'sales.approve',
             ];
             $assignments = [];
 
-            foreach (['Administrator', 'Inventory and Purchasing User'] as $roleName) {
-                foreach ($allPermissions as $permission) {
+            $inventoryPermissions = array_values(array_diff($allPermissions, [
+                'customers.view',
+                'customers.manage',
+                'sales.view',
+                'sales.manage',
+                'sales.approve',
+            ]));
+
+            DB::table('role_permissions')
+                ->where('role_id', $roles['Inventory and Purchasing User'])
+                ->whereIn('permission_code', [
+                    'customers.view',
+                    'customers.manage',
+                    'sales.view',
+                    'sales.manage',
+                    'sales.approve',
+                ])
+                ->delete();
+
+            foreach ([
+                'Administrator' => $allPermissions,
+                'Inventory and Purchasing User' => $inventoryPermissions,
+            ] as $roleName => $rolePermissions) {
+                foreach ($rolePermissions as $permission) {
                     $assignments[] = [
                         'role_id' => $roles[$roleName],
                         'permission_code' => $permission,
@@ -59,7 +91,7 @@ class CatalogPermissionsSeeder extends Seeder
                 }
             }
 
-            foreach ($readPermissions as $permission) {
+            foreach ($salesPermissions as $permission) {
                 $assignments[] = [
                     'role_id' => $roles['Sales User'],
                     'permission_code' => $permission,
